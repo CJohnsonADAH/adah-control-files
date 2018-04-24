@@ -46,9 +46,9 @@ End Property
 Public Property Get Scans() As Collection
     Dim cScans As New Collection
     
-    For i = 0 To ListControl.ListCount - 1
-        cScans.Add ListControl.ItemData(i)
-    Next i
+    For I = 0 To ListControl.ListCount - 1
+        cScans.Add ListControl.ItemData(I)
+    Next I
     
     Set Scans = cScans
 End Property
@@ -107,7 +107,7 @@ Public Sub DetachSelectedFromRecord(Optional ByVal ID As Integer)
         
         If Len(ACCN) = 0 Then
             'Delete using numeric ID...
-            Err.Raise vbObjectError + 255, "DetachSelectedFromRecord Not Implemented Without ACCN"
+            Err.Raise NOHOOK_EXCEPTION, "DetachSelectedFromRecord Not Implemented Without ACCN"
         Else
             deleteAccnScanAttachments ACCN:=ACCN, FileName:=sFileName, FilePath:=sFilePath
             SuccessfullyRemoved = True
@@ -122,7 +122,7 @@ Public Sub DetachSelectedFromRecord(Optional ByVal ID As Integer)
 End Sub
 
 Public Sub AttachToRecord(Location As Variant, Optional NewRecord As Boolean, Optional ByVal ID As Integer)
-    Dim i As Integer
+    Dim I As Integer
     Dim f As Object
     Dim sACCN As String
     Dim sDate As String
