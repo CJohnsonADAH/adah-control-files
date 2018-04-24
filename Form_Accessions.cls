@@ -97,7 +97,10 @@ Private Sub cmdAddScan_Click()
 
             If Not oAccnScan.isOnDefaultDrive Then
                 If Len(sDestinationFolder) = 0 Then
+                    Let sDestinationFolder = oAccnScan.FolderHomePath
+                End If
                 
+                If Len(sDestinationFolder) = 0 Then
                     Set dlgDestinationFolder = Application.FileDialog(msoFileDialogFolderPicker): With dlgDestinationFolder
                         .Title = "Destination Folder"
                     End With
@@ -106,7 +109,7 @@ Private Sub cmdAddScan_Click()
                         Let sDestinationFolder = dlgDestinationFolder.SelectedItems(1)
                     End If
                 End If
-                
+                                
                 If Len(sDestinationFolder) > 0 Then
                     oAccnScan.doCopyTo NewPath:=sDestinationFolder
                     Let sItem = oAccnScan.Url

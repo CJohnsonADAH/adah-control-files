@@ -85,6 +85,9 @@ Public Property Let Major(s As String)
     
     If canUseForMajor(s) Then
         Let iMajor = CLng(s)
+        If iMajor < 1900 And Len(s) = 2 Then
+            Let iMajor = 1900 + iMajor
+        End If
         Let sMajor = Format(iMajor, MajorFormat)
     Else
         Let sMajor = ""
@@ -197,7 +200,7 @@ Private Sub RetrieveAttachmentsFromDB()
     
     Dim Rs As DAO.Recordset
     Dim oQuery As DAO.QueryDef
-    Dim i As Integer, iCount As Integer
+    Dim I As Integer, iCount As Integer
 
     'check the database for comments flagged with this CollectionNumber
     On Error Resume Next: CurrentDb.QueryDefs.Delete "qScanFilesByAccn": On Error GoTo 0

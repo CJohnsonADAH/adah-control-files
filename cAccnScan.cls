@@ -106,6 +106,7 @@ End Function
 Public Property Let Url(sUrl As String)
     Dim aPath() As String
     Dim sPath As String
+    Dim iStartPath As Integer
     Dim I As Integer
     
     aPath = Split(sUrl, "\")
@@ -113,10 +114,19 @@ Public Property Let Url(sUrl As String)
     
     sDrive = ""
     sPath = ""
-    For I = LBound(aPath) To UBound(aPath) - 1
-        If Right(aPath(I), 1) = ":" Then
-            sDrive = aPath(I)
-        ElseIf Len(aPath(I)) = 0 Then
+    
+    Let iStartPath = LBound(aPath)
+    
+    If RegexMatch(Left(sUrl, 2), "[A-Za-z][:]") Then
+        Let sDrive = Left(sUrl, 2)
+        Let iStartPath = iStartPath + 1
+    ElseIf Left(sUrl, 2) = "\\" Or Left(sUrl, 2) = "//" Then
+        Let sDrive = "\\" & aPath(iStartPath + 2) & "\" & aPath(iStartPath + 3)
+        Let iStartPath = iStartPath + 4
+    End If
+    
+    For I = iStartPath To UBound(aPath) - 1
+        If Len(aPath(I)) = 0 Then
             'NOOP
         ElseIf (Len(sDrive) = 0) And (aPath(I) = PathStart) Then
             sDrive = "\" & sPath
@@ -265,27 +275,6 @@ Public Function AccnDate() As Date
     End If
 End Function
 
-Public Sub ForceCorrectFileName()
-    Dim sAccnYear As String
-    Dim sAccnPoint As String
-    Dim sAccnDate As String
-    Dim oRefs As Variant
-    
-    Set oRefs = MetadataFromFileName
-    
-    sAccnDate = oRefs(3) & oRefs(4) & oRefs(5)
-    
-    If Val(oRefs(1)) < 1900 Then
-        sAccnYear = Format(1900 + Val(oRefs(1)), "0000")
-    Else
-        sAccnYear = Format(Val(oRefs(1)), "0000")
-    End If
-    
-    sAccnPoint = Format(Val(oRefs(2)), "0000")
-    
-    Let sFileNameCorrected = oRefs(0) & "_" & sAccnYear & "_" & sAccnPoint & "_" & sAccnDate & oRefs(6) & ".PDF"
-End Sub
-
 Public Sub InsertIntoAccessions(Optional ByVal OnCurrent As Boolean, Optional ByVal NewRecord As Boolean, Optional ByRef ListView As Variant)
     Dim sSuggestion As String
     Dim rsAccnScan As DAO.Recordset
@@ -410,6 +399,27 @@ Public Sub InsertIntoAccessions(Optional ByVal OnCurrent As Boolean, Optional By
 
 End Sub
 
+Public Sub ForceCorrectFileName()
+    Dim sAccnYear As String
+    Dim sAccnPoint As String
+    Dim sAccnDate As String
+    Dim oRefs As Variant
+    
+    Set oRefs = MetadataFromFileName
+    
+    sAccnDate = oRefs(3) & oRefs(4) & oRefs(5)
+    
+    If Val(oRefs(1)) < 1900 Then
+        sAccnYear = Format(1900 + Val(oRefs(1)), "0000")
+    Else
+        sAccnYear = Format(Val(oRefs(1)), "0000")
+    End If
+    
+    sAccnPoint = Format(Val(oRefs(2)), "0000")
+    
+    Let sFileNameCorrected = oRefs(0) & "_" & sAccnYear & "_" & sAccnPoint & "_" & sAccnDate & oRefs(6) & ".PDF"
+End Sub
+
 Public Sub ConvertFileName(ByRef Result As String)
     Dim oIsOldAccnFile As New RegExp
     Dim reIsCopierScan As New RegExp
@@ -499,6 +509,19 @@ Public Function isOnDefaultDrive() As Boolean
     Next I
     
     Let isOnDefaultDrive = (driveNames(1) = driveNames(2))
+End Function
+
+Public Function FolderHomePath()
+    Dim oFolder As cCabinetFolder
+    
+    Set oFolder = New cCabinetFolder: With oFolder
+    .FileSourcePath = FileFolderSlug
+    End With
+    
+    If oFolder.ID <> 0 Then
+        Let FolderHomePath = getDefaultDrive & oFolder.FolderPath
+    End If
+ 
 End Function
 
 Public Sub doCopyTo(NewPath As String)
