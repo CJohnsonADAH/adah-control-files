@@ -73,6 +73,7 @@ Private Sub cmdAddScan_Click()
     Dim sFilePath As String
     Dim sFileName As String
     Dim bWasNewRecord As Boolean
+    Dim bAttachmentError As Boolean
     Dim oAccnScan As cAccnScan
     Dim sDestinationFolder As String
     
@@ -117,18 +118,17 @@ Private Sub cmdAddScan_Click()
             Let bWasNewRecord = Me.NewRecord 'Status may be changed by error handler
     
 AttachToRecordTry:
-            On Error GoTo AttachToRecordCatch
+            Let bAttachmentError = False: On Error GoTo AttachToRecordCatch
             AccnScanListView.AttachToRecord Location:=oAccnScan, NewRecord:=bWasNewRecord
             
             If bWasNewRecord Then
-                If Not IsNull(Me!AccnDate.value) Then
+                If Not bAttachmentError And Not IsNull(Me!AccnDate.value) Then
                     DoCmd.GoToRecord Record:=acNewRec
                 Else
                     Me!AccnDate.SetFocus
+                    Exit For
                 End If
             End If
-    
-AttachToRecordFinally:
     
             'Continue on with the next item in the loop.
         Next vItem
@@ -153,7 +153,7 @@ AttachToRecordCatch:
         Resume
     Else
         Me!ACCN.BackColor = RGB(255, 192, 192)
-        Resume AttachToRecordFinally
+        Let bAttachmentError = True
     End If
 End Sub
 
@@ -192,12 +192,14 @@ Private Sub DoFillOutAndSave(ByVal FileName As String, ByRef OK As Boolean)
         
         On Error GoTo cmdSaveRecordCatch
         DoCmd.RunCommand acCmdSaveRecord
-
+    Else
+        'Proven guilty: no ACCN
+        Let OK = False
     End If
     Exit Sub
     
 cmdSaveRecordCatch:
-    'Proven guilty
+    'Proven guilty: error during record save
     Let OK = False
     Resume Next
 
@@ -246,18 +248,22 @@ Private Function GetDetails(ByVal File As String, Optional ByVal s As String) As
         Next i
         
         Let rDetails.Date = CDate(sDate)
-    Else
+    ElseIf Len(s) > 0 Then
         Let oAx.ACCN = s
         Let rDetails.ACCN = oAx.ACCN
+    Else
+        'NOOP
     End If
     
-    'Try to extract Creator from the file system
-    'information, e.g. from the path
-    Set oAccnScan = New cAccnScan: With oAccnScan
-        .ACCN = rDetails.ACCN
-        .Url = File
-    End With
-    rDetails.Creator = oAccnScan.Creator
+    If Len(rDetails.ACCN) > 0 Then
+        'Try to extract Creator from the file system
+        'information, e.g. from the path
+        Set oAccnScan = New cAccnScan: With oAccnScan
+            .ACCN = rDetails.ACCN
+            .Url = File
+        End With
+        rDetails.Creator = oAccnScan.Creator
+    End If
     
     Let GetDetails = rDetails
 End Function
