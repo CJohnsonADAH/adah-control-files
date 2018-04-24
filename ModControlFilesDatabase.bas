@@ -19,10 +19,22 @@ Option Explicit
 '**
 Sub SecureCreatorRecord(Creator As String)
     Dim sSuggestion As String
+    
+    Dim sCurName As String
     Dim sAgencyName As String
+    
+    Dim sCreatorCode As String
+    Dim sDivision As String
+    Dim sSection As String
+    
     Dim rsAccessions As DAO.Recordset
     
-    Set rsAccessions = CurrentDb.OpenRecordset("SELECT * FROM Sheet1 WHERE CurName = '" & Creator & "'")
+    Let sCurName = Creator
+    If InStr(1, Creator, "-") Then
+        Let sCurName = Left(sCurName, InStr(1, sCurName, "-") - 1)
+    End If
+    
+    Set rsAccessions = CurrentDb.OpenRecordset("SELECT * FROM Sheet1 WHERE CurName = '" & sCurName & "'")
     If Not rsAccessions.EOF Then
         If Not IsNull(rsAccessions!AgencyName) Then
             sSuggestion = rsAccessions!AgencyName
@@ -32,19 +44,49 @@ Sub SecureCreatorRecord(Creator As String)
     Else
         sSuggestion = Creator
     End If
+    rsAccessions.Close
     
-    Set rsAccessions = CurrentDb.OpenRecordset("SELECT * FROM Creators WHERE CurName = '" & Creator & "'")
+    
+    Set rsAccessions = CurrentDb.OpenRecordset("SELECT * FROM Agencies WHERE CurName = '" & sCurName & "'")
     If rsAccessions.EOF Then
-        sAgencyName = InputBox(Prompt:=Creator & " = ", Title:="AgencyName for CurName " & Creator, Default:=sSuggestion)
+        sAgencyName = InputBox(Prompt:=Creator & " = ", Title:="AgencyName for CurName " & sCurName, Default:=sSuggestion)
         If Len(sAgencyName) > 0 Then
-            Set rsAccessions = CurrentDb.OpenRecordset("Creators")
+            rsAccessions.Close
+            
+            Set rsAccessions = CurrentDb.OpenRecordset("Agencies")
             rsAccessions.AddNew
-            rsAccessions!CurName = Creator
+            rsAccessions!CurName = sCurName
             rsAccessions!AgencyName = sAgencyName
             rsAccessions.Update
         End If
+    Else
+        Let sAgencyName = Nz(rsAccessions!AgencyName.value)
     End If
-
+    rsAccessions.Close
+    
+    Set rsAccessions = CurrentDb.OpenRecordset("SELECT * FROM Creators WHERE (CreatorCode = '" & Creator & "') OR (CreatorCode LIKE '" & Creator & "-*')")
+    If rsAccessions.EOF Then
+        sCreatorCode = InputBox(Prompt:=Creator & " = ", Title:="CreatorCode for " & Creator, Default:=Creator & "-00")
+        sDivision = InputBox(Prompt:=sCreatorCode & ", Division: ", Title:="Division for " & sCreatorCode, Default:="")
+        sSection = InputBox(Prompt:=sCreatorCode & ", Division: " & sDivision & " Section: ", Title:="Section for " & sCreatorCode, Default:="")
+        If Len(sCreatorCode) > 0 Then
+            rsAccessions.Close
+            
+            Set rsAccessions = CurrentDb.OpenRecordset("Creators")
+            rsAccessions.AddNew
+            rsAccessions!CreatorCode = sCreatorCode
+            rsAccessions!AgencyName = sAgencyName
+            If Len(sDivision) > 0 Then
+                rsAccessions!Division = sDivision
+            End If
+            If Len(sSection) > 0 Then
+                rsAccessions!Section = sSection
+            End If
+            rsAccessions.Update
+        End If
+    End If
+    rsAccessions.Close
+    
 End Sub
 
 Sub deleteAccnScanAttachments(ACCN As String, ByVal FileName As String, ByVal FilePath As String)
@@ -55,7 +97,7 @@ Sub deleteAccnScanAttachments(ACCN As String, ByVal FileName As String, ByVal Fi
     'FIXME: This currently seems to be broken, and returns no records from the WHERE
     sFilePathMatch = "FilePath=[paramFilePath]"
     If Len(FilePath) = 0 Then
-        sFilePathMatch = "(" & sFilePathMatch & " OR FilePath IS NULL)"
+        sFilePathMatch = "(LEN(FilePath)=0 OR FilePath IS NULL)"
     End If
     
     'check the database for comments flagged with this CollectionNumber
@@ -70,8 +112,9 @@ Sub deleteAccnScanAttachments(ACCN As String, ByVal FileName As String, ByVal Fi
     )
     oQuery.Parameters("paramAccn") = ACCN
     oQuery.Parameters("paramFileName") = FileName
-    oQuery.Parameters("paramFilePath") = FilePath
-    
+    If Len(FilePath) > 0 Then
+        oQuery.Parameters("paramFilePath") = FilePath
+    End If
     oQuery.Execute
     
     On Error Resume Next: CurrentDb.QueryDefs.Delete "qDeleteAccnScans": On Error GoTo 0
@@ -80,54 +123,13 @@ Sub deleteAccnScanAttachments(ACCN As String, ByVal FileName As String, ByVal Fi
 
 End Sub
 
-Sub putAccnScanAttachments(ACCN As String, ByVal FileName As String, ByVal FilePath As String)
-    Dim Rs As DAO.Recordset
-    Dim oQuery As DAO.QueryDef
-    Dim cScans As Collection
-    Dim vScan As Variant
-    Dim alreadyGotOne As Boolean
-    
-    'check the database for comments flagged with this CollectionNumber
-    alreadyGotOne = False
-    Set cScans = getAccnScanAttachments(ACCN)
-    For Each vScan In cScans
-        If vScan(2) = FileName Then
-            alreadyGotOne = True
-            Debug.Print "I DON'T THINK HE'LL BE VERY INTERESTED IN " & FileName & ". HE'S ALREADY GOT ONE, YOU SEE? IT'SA VERY NICE-UH!"
-        End If
-    Next vScan
-    
-    If Not alreadyGotOne Then
-        On Error Resume Next: CurrentDb.QueryDefs.Delete "qInsertAccnScans": On Error GoTo 0
-        
-        Set oQuery = CurrentDb.CreateQueryDef( _
-            Name:="qInsertAccnScans", _
-            SQLText:="INSERT INTO AccnScans (ACCN, NonAccnId, FileName, FilePath) VALUES (" _
-            & "[paramAccn], " _
-            & "NULL, " _
-            & "[paramFileName], " _
-            & "[paramFilePath])" _
-        )
-        oQuery.Parameters("paramAccn") = Trim(UCase(ACCN))
-        oQuery.Parameters("paramFileName") = Trim(FileName)
-        oQuery.Parameters("paramFilePath") = Trim(FilePath)
-        
-        oQuery.Execute
-
-        On Error Resume Next: CurrentDb.QueryDefs.Delete "qInsertAccnScans": On Error GoTo 0
-        
-        Set oQuery = Nothing
-    End If
-    
-End Sub
-
 Function getAccnScanAttachments(ACCN As String) As Collection
     Dim aBits(1 To 2) As String
     Dim cAttachments As New Collection
     
     Dim Rs As DAO.Recordset
     Dim oQuery As DAO.QueryDef
-    Dim I As Integer, iCount As Integer
+    Dim i As Integer, iCount As Integer
 
     'check the database for comments flagged with this CollectionNumber
     On Error Resume Next: CurrentDb.QueryDefs.Delete "qScanFilesByAccn": On Error GoTo 0
@@ -165,65 +167,26 @@ End Function
 '**
 '*
 '**
-Function getScanFileName(ByVal FileName As String, Optional ByVal FilePath As String) As String
-    Dim sFilePath As String
-    Dim sRelativePath As String
-    Dim f As String
-    Dim sDrive As String
-    Dim sPattern As String
-    Dim aWords() As String
-    Dim cSearchDirs As New Collection
-    Dim vSearchDir As Variant
+Function getScanFileName(ByVal FileName As String, Optional ByVal FilePath As String, Optional ByVal ExcludeDrive As Boolean, Optional ByVal ExcludeFileName As Boolean) As String
+    Dim oAccnScan As New cAccnScan
+    Dim sFullPath As String
     
-    sDrive = "S:"
-    If Len(FilePath) > 0 Then
-        sRelativePath = FilePath
-        If Left(sRelativePath, 1) <> "\" Then
-            sRelativePath = "\" & sRelativePath
+    Let oAccnScan.FileName = FileName
+    Let oAccnScan.FilePath = FilePath
+    
+    If oAccnScan.Exists Then
+        If Not ExcludeDrive Then
+            Let sFullPath = oAccnScan.Drive
         End If
         
-        If Right(sRelativePath, 1) <> "\" Then
-            sRelativePath = sRelativePath & "\"
+        Let sFullPath = sFullPath & oAccnScan.FilePath
+        
+        If Not ExcludeFileName Then
+            Let sFullPath = sFullPath & "\" & oAccnScan.FileName
         End If
-        
-        sFilePath = sRelativePath & FileName
-    Else
-        Dim aScanDir(1 To 2) As String
-        Dim sDirPrefix As String
-        Dim I As Integer
-        
-        aScanDir(1) = "State"
-        aScanDir(2) = "Local"
-        For I = 1 To 2
-            aWords = Split(FileName, "_", 2)
-            If LBound(aWords) = 0 And UBound(aWords) > 0 Then
-                sPattern = aWords(0) & "_*"
-            Else
-                sPattern = "*"
-            End If
-    
-            sDirPrefix = "\CollectionsManagement\AgencyFiles\" & aScanDir(I) & "\"
-            
-            f = Dir(sDrive & sDirPrefix & sPattern, vbDirectory)
-            Do While Len(f) > 0
-                cSearchDirs.Add f
-                f = Dir()
-            Loop
-        
-            For Each vSearchDir In cSearchDirs
-                sPattern = sDrive & sDirPrefix & vSearchDir & "\ControlFiles\" & FileName
-                If Dir(sPattern, vbNormal) <> "" Then
-                    sFilePath = sDirPrefix & vSearchDir & "\ControlFiles\" & FileName
-                    Exit For
-                End If
-            Next vSearchDir
-        Next I
     End If
     
-    If Len(sFilePath) > 0 Then
-        sFilePath = sDrive & sFilePath
-    End If
-    getScanFileName = sFilePath
+    Let getScanFileName = sFullPath
 End Function
 
 '**
@@ -275,7 +238,7 @@ Function GetAccnsFromCurName(CurName As String) As Collection
     Set Rs = oQuery.OpenRecordset
     
     Do Until Rs.EOF
-        cACCNs.Add Rs!ACCN.Value
+        cACCNs.Add Rs!ACCN.value
         Rs.MoveNext
     Loop
 
@@ -302,7 +265,7 @@ Function CountAccnsFromCurName(CurName As String) As Integer
     Set Rs = oQuery.OpenRecordset
     
     Do Until Rs.EOF
-        CountAccnsFromCurName = Rs!Count.Value
+        CountAccnsFromCurName = Rs!Count.value
         Rs.MoveNext
     Loop
 
@@ -327,7 +290,7 @@ Function IsCurNameInCreators(CurName As String) As Boolean
     Set Rs = oQuery.OpenRecordset
     
     Do Until Rs.EOF
-        IsCurNameInCreators = (Rs!Count.Value > 0)
+        IsCurNameInCreators = (Rs!Count.value > 0)
         Rs.MoveNext
     Loop
 
@@ -360,7 +323,7 @@ Function CurNamesInCreators(Optional ByVal CurName As String) As Dictionary
     Set Rs = oQuery.OpenRecordset
     
     Do Until Rs.EOF
-        dCurNames.Item(Rs!CurName.Value) = True
+        dCurNames.Item(Rs!CurName.value) = True
         Rs.MoveNext
     Loop
 
@@ -385,7 +348,7 @@ Function GetCommentsOnCollection(CollectionNumber As String) As Collection
     
     Dim Rs As DAO.Recordset
     Dim oQuery As DAO.QueryDef
-    Dim I As Integer, iCount As Integer
+    Dim i As Integer, iCount As Integer
 
     'check the database for comments flagged with this CollectionNumber
     On Error Resume Next: CurrentDb.QueryDefs.Delete "qCommentsCount": On Error GoTo 0
@@ -400,7 +363,7 @@ Function GetCommentsOnCollection(CollectionNumber As String) As Collection
     Set Rs = oQuery.OpenRecordset
     
     Do Until Rs.EOF
-        cComments.Add Rs!ID.Value
+        cComments.Add Rs!ID.value
         Rs.MoveNext
     Loop
 
@@ -435,7 +398,7 @@ End Function
 '**
 Sub DebugDump(v As Variant)
     Dim vScalar As Variant
-    If IsArray(v) Or TypeName(v) = "Collection" Then
+    If IsArray(v) Or TypeName(v) = "Collection" Or TypeName(v) = "ISubMatches" Then
         If IsArray(v) Then
             Debug.Print TypeName(v), LBound(v), UBound(v)
         Else
@@ -476,109 +439,143 @@ Function JoinCollection(delim As String, c As Collection)
 End Function
 
 Function camelCaseSplitString(ByVal s As String) As Collection
+    Dim isAlpha As New RegExp
     Dim isUpper As New RegExp
     Dim isLower As New RegExp
+    Dim isUpperLower As New RegExp
     Dim isWhiteSpace As New RegExp
     
     With isUpper
         .IgnoreCase = False
-        .Pattern = "^([A-Z])$"
+        .pattern = "^([A-Z])$"
     End With
     
     With isLower
         .IgnoreCase = False
-        .Pattern = "^([a-z])$"
+        .pattern = "^([a-z])$"
+    End With
+    
+    With isAlpha
+        .IgnoreCase = False
+        .pattern = "^([A-Za-z]+)$"
+    End With
+
+    With isUpperLower
+        .IgnoreCase = False
+        .pattern = "^([A-Z][a-z])$"
     End With
     
     With isWhiteSpace
         .IgnoreCase = False
-        .Pattern = "^(\s|[_])$"
+        .pattern = "^((\s|[_])+)$"
     End With
 
     
     Dim cWords As New Collection
-    Dim c As String
-    Dim I As Integer
+    Dim c0 As String, c As String, c2 As String
+    Dim I0 As Integer, i As Integer
     Dim Anchor As Integer
     Dim State As Integer
     
     Anchor = 0
-    I = 1
+    i = 1
     GoTo NextWord
     
     'Finite State Machine
 NextWord:
-    If I > Len(s) Then
+    If i > Len(s) Then
         GoTo ExitMachine
     End If
     
-    c = Mid(s, I, 1)
-    If isUpper.Test(c) Then
-        Anchor = I
-        GoTo FromUpperToNextWord
-    ElseIf isLower.Test(c) Then
-        Anchor = I
-        GoTo FromLowerToNextWord
-    ElseIf isWhiteSpace.Test(c) Then
-        Anchor = I
-        I = I + 1
+    c0 = Mid(s, i, 1)
+    If isUpper.Test(c0) Then
+        Anchor = i
+        GoTo WordBeginsOnUpper
+    ElseIf isLower.Test(c0) Then
+        Anchor = i
+        GoTo WordBeginsOnLower
+    ElseIf isWhiteSpace.Test(c0) Then
+        Anchor = i
+        Let i = i + Len(c)
         GoTo NextWord
     Else
-        Anchor = I
+        Anchor = i
         GoTo FromOtherToNextWord
     End If
 
-FromLowerToNextWord:
-    If I > Len(s) Then GoTo NextWord
-    c = Mid(s, I, 1)
+WordBeginsOnLower:
+    If i > Len(s) Then GoTo NextWord
+    Let c0 = c: Let c = Mid(s, i, 1)
+    
+    Let i = i + Len(c)
+    GoTo ContinueWordToUpperBreak
+
+ContinueWordToUpperBreak:
+    If i > Len(s) Then GoTo NextWord
+    Let c0 = c: Let c = Mid(s, i, 1)
+    
+    If isUpper.Test(c) Or isWhiteSpace.Test(c) Then
+        GoTo ClipWord
+    Else
+        i = i + Len(c)
+    End If
+    GoTo ContinueWordToUpperBreak
+    
+WordBeginsOnUpper:
+    If i > Len(s) Then GoTo NextWord
+    Let c0 = c: c = Mid(s, i, 1)
+
+    'Move ahead to the next character
+    'UPPERCase: two uppers in a row
+    'MixedCase: one upper, one lower
+    Let i = i + 1
+    Let c0 = c: c = Mid(s, i, 1)
     
     If isLower.Test(c) Then
-        I = I + 1
-        GoTo FromLowerToNextWord
-    ElseIf isUpper.Test(c) Or isWhiteSpace.Test(c) Then
-        GoTo ClipWord
+        Let i = i + Len(c)
+        GoTo ContinueWordToUpperBreak
+    ElseIf isUpper.Test(c) Then
+        GoTo ContinueWordToUpperLowerBreak
+    ElseIf Not isWhiteSpace.Test(c) Then
+        GoTo ContinueWordToUpperLowerBreak
     Else
-        I = I + 1
-        GoTo FromLowerToNextWord
+        GoTo ClipWord
     End If
     
-FromUpperToNextWord:
-    If I > Len(s) Then GoTo NextWord
-    c = Mid(s, I, 1)
+ContinueWordToUpperLowerBreak:
+    If i > Len(s) Then GoTo NextWord
+    Let c0 = c: c = Mid(s, i, 1): c2 = Mid(s, i, 2)
 
-    If isUpper.Test(c) Then
-        I = I + 1
-        GoTo FromUpperToNextWord
-    ElseIf isLower.Test(c) Then
-        I = I + 1
-        GoTo FromLowerToNextWord
-    ElseIf isWhiteSpace.Test(c) Then
+    If isUpperLower.Test(c2) Or isWhiteSpace.Test(c) Then
         GoTo ClipWord
+    ElseIf isAlpha.Test(c) Then
+        i = i + 1
+        GoTo ContinueWordToUpperLowerBreak
     Else
-        I = I + 1
-        GoTo FromUpperToNextWord
+        i = i + 1
+        GoTo ContinueWordToUpperLowerBreak
     End If
     
 FromOtherToNextWord:
-    If I > Len(s) Then GoTo NextWord
-    c = Mid(s, I, 1)
+    If i > Len(s) Then GoTo NextWord
+    c = Mid(s, i, 1)
     
     If isUpper.Test(c) Or isLower.Test(c) Or isWhiteSpace.Test(c) Then
         GoTo ClipWord
     Else
-        I = I + 1
+        i = i + 1
         GoTo FromOtherToNextWord
     End If
 
 ClipWord:
-    If Anchor < I Then
-        cWords.Add Mid(s, Anchor, I - Anchor)
+    If Anchor < i Then
+        cWords.Add Mid(s, Anchor, i - Anchor)
     End If
     GoTo NextWord
 
 ExitMachine:
     If Anchor > 0 Then
-        cWords.Add Mid(s, Anchor, I - Anchor)
+        cWords.Add Mid(s, Anchor, i - Anchor)
     End If
     
 '    Anchor = 1
@@ -600,6 +597,195 @@ ExitMachine:
     Set camelCaseSplitString = cWords
 End Function
 
-Function getDefaultDrive() As String
+Public Function getDefaultDrive() As String
     getDefaultDrive = "\\ADAHFS1\GR-Collections"
+End Function
+
+Public Function IsSameLNUMBER(L1 As String, L2 As String) As Boolean
+    Dim o1 As New cLNumber
+    Dim o2 As New cLNumber
+    
+    Let o1.Number = L1
+    Let o2.Number = L2
+    
+    Let IsSameLNUMBER = o1.SameAs(o2)
+End Function
+
+Public Function ConvertAccnScanFileNames()
+    Dim Rs As DAO.Recordset
+    Dim oAccnScan As cAccnScan
+    Dim sNewFileName As String
+    
+    Set Rs = CurrentDb.OpenRecordset("AccnScans")
+    Do Until Rs.EOF
+        
+        If Len(Nz(Rs!FilePath)) > 0 Then
+            Set oAccnScan = New cAccnScan: With oAccnScan
+                .FilePath = Rs!FilePath
+                .FileName = Rs!FileName
+            End With
+            
+            oAccnScan.ConvertFileName Result:=sNewFileName
+            If Len(sNewFileName) > 0 Then
+                Debug.Print Rs!FileName.value, " => ", oAccnScan.FileName
+                Rs.Edit
+                Let Rs!FileName.value = oAccnScan.FileName
+                Rs.Update
+            End If
+        End If
+        
+        Rs.MoveNext
+    Loop
+    Rs.Close
+    Set Rs = Nothing
+    
+End Function
+
+Public Function ConvertPDFs()
+    Dim oAccnScan As New cAccnScan
+    
+    Dim sRelativePath As String
+    Dim f As String
+    Dim sPattern As String
+    Dim aWords() As String
+    Dim cSearchDirs As New Collection
+    Dim vSearchDir As Variant
+    
+    Dim sFileName As String
+    Dim sNewFileName As String
+    Dim sFullPath As String
+    Dim sNewFullPath As String
+    
+    Dim cBits As Collection
+    
+    Dim vScanDir As Variant
+    Dim cScanDirs As New Collection
+    Dim sDirPrefix As String
+    Dim i As Integer
+    
+    Dim Rs As DAO.Recordset
+    
+    cScanDirs.Add "\AgencyState"
+    cScanDirs.Add "\AgencyLocal"
+    cScanDirs.Add "\AgencyCourts"
+    cScanDirs.Add "\AgencyUS"
+    cScanDirs.Add "\CollectionsManagement\AgencyFiles\State"
+    cScanDirs.Add "\CollectionsManagement\AgencyFiles\Local"
+    
+    For Each vScanDir In cScanDirs
+        sPattern = "*"
+    
+        sDirPrefix = vScanDir & "\"
+        f = Dir(oAccnScan.Drive & sDirPrefix & sPattern, vbDirectory)
+        Do While Len(f) > 0
+            If (f <> ".") And (f <> "..") Then
+                cSearchDirs.Add (sDirPrefix & f & "\ContolFile")
+                cSearchDirs.Add (sDirPrefix & f & "\ContolFiles")
+                cSearchDirs.Add (sDirPrefix & f & "\ControlFile")
+                cSearchDirs.Add (sDirPrefix & f & "\ControlFiles")
+            End If
+            f = Dir()
+        Loop
+    Next vScanDir
+
+    Dim sMatchDocumentation As String
+    Dim sMatchDocumentationV2 As String
+    Dim sMatchCopierScan As String
+    
+    Let sMatchDocumentation = "^([A-Z0-9]{2,3})_(Correspondence|Documentation|Administrative|Administration|Clipping|Microfilm)_(.*)([.]PDF)$"
+    Let sMatchDocumentationV2 = "^([A-Z0-9]{2,3})(Corr|Doc|Admin|Clip|Microfilm)(.*)([.]PDF)$"
+    
+    Let sMatchCopierScan = oAccnScan.MATCH_COPIER_SCAN
+    
+    For Each vSearchDir In cSearchDirs
+        sPattern = oAccnScan.Drive & vSearchDir & "\*.PDF"
+        Let sFileName = Dir(sPattern, vbNormal)
+        Do While Len(sFileName) > 0
+            If RegexMatch(sFileName, oAccnScan.MATCH_FILENAME_V1) Then
+                ' NOOP
+            ElseIf RegexMatch(sFileName, oAccnScan.MATCH_FILENAME_V2) Then
+                ' NOOP
+            ElseIf RegexMatch(sFileName, sMatchDocumentationV2) Then
+                ' NOOP
+            ElseIf RegexMatch(sFileName, sMatchDocumentation) Then
+                Set cBits = New Collection
+                cBits.Add RegexComponent(sFileName, sMatchDocumentation, 1)
+                cBits.Add Abbreviate(RegexComponent(sFileName, sMatchDocumentation, 2))
+                cBits.Add RegexComponent(sFileName, sMatchDocumentation, 3)
+                cBits.Add RegexComponent(sFileName, sMatchDocumentation, 4)
+                
+                ' Is it referenced in AccnScans?
+                Set Rs = CurrentDb.OpenRecordset("SELECT * FROM AccnScans WHERE FileName='" & Replace(sFileName, "'", "''") & "'")
+                If Rs.EOF Then
+                    Debug.Print RegexComponent(sFileName, sMatchDocumentation, 2) & " [NO DB]: ", sFileName, JoinCollection("", cBits)
+                    Name (oAccnScan.Drive & vSearchDir & "\" & sFileName) As (oAccnScan.Drive & vSearchDir & "\" & JoinCollection("", cBits))
+                Else
+                    Debug.Print RegexComponent(sFileName, sMatchDocumentation, 2) & " [DB]: ", sFileName, JoinCollection("", cBits)
+                    Name (oAccnScan.Drive & vSearchDir & "\" & sFileName) As (oAccnScan.Drive & vSearchDir & "\" & JoinCollection("", cBits))
+                    Rs.Edit
+                    Let Rs!FileName = JoinCollection("", cBits)
+                    Rs.Update
+                End If
+                Rs.Close
+                
+                Set cBits = Nothing
+            ElseIf RegexMatch(sFileName, sMatchCopierScan) Then
+                
+                ' Is it referenced in AccnScans?
+                Set Rs = CurrentDb.OpenRecordset("SELECT * FROM AccnScans LEFT JOIN Accessions ON (AccnScans.ACCN=Accessions.ACCN) WHERE FileName='" & Replace(sFileName, "'", "''") & "'")
+                If Rs.EOF Then
+                    Debug.Print "COPIER SCAN UNPROCESSED [NO DB]: ", sFileName
+                Else
+                    Let sFullPath = oAccnScan.Drive & vSearchDir & "\" & sFileName
+                    If Rs!FileNameToBeFixed.value Then
+                        If Len(Nz(Rs.Fields("AccnScans.ACCN").value)) > 0 Then
+                            
+                            Let sNewFileName = GetCurNameFromCreatorCode(Nz(Rs!Creator)) & Replace(Nz(Rs.Fields("AccnScans.ACCN").value), ".", "") & ".PDF"
+                        Else
+                            Let sNewFileName = sFileName
+                        End If
+                        
+                        Let sNewFullPath = oAccnScan.Drive & vSearchDir & "\" & sNewFileName
+                    
+                        Debug.Print "COPIER SCAN [DB]: ", sFullPath, "=>", sNewFileName
+                        Name sFullPath As sNewFullPath
+                        Rs.Edit
+                        Let Rs!FileName = sNewFileName
+                        Let Rs!FileNameToBeFixed = False
+                        Rs.Update
+                    Else
+                        Debug.Print "COPIER SCAN UNPROCESSED [DB]: ", sFileName
+                    End If
+                End If
+                Rs.Close
+                
+            Else
+                Debug.Print "MISC UNPROCESSED: ", sFileName
+            End If
+            Let sFileName = Dir
+        Loop
+    Next vSearchDir
+    Debug.Print "... Done."
+    
+End Function
+
+Public Function Abbreviate(Text As String)
+    Let Abbreviate = Text
+    
+    Select Case Text
+    Case "Correspondence":
+        Let Abbreviate = "Corr"
+    Case "Documentation":
+        Let Abbreviate = "Doc"
+    Case "Administrative":
+        Let Abbreviate = "Admin"
+    Case "Administration":
+        Let Abbreviate = "Admin"
+    Case "Clipping":
+        Let Abbreviate = "Clip"
+    End Select
+End Function
+
+Public Function GetCurNameFromCreatorCode(Code As String) As String
+    Let GetCurNameFromCreatorCode = Left(Code, InStr(1, Code & "-", "-") - 1)
 End Function

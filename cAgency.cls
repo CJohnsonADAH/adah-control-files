@@ -15,17 +15,19 @@ Attribute VB_Exposed = False
 Option Compare Database
 Option Explicit
 
-Private sCurName As String
+Private sCreatorCode As String
 Private sAgencyName As String
 Private sShortName As String
+Private sDivision As String
+Private sSection As String
 Private bRetrieved As Boolean
 
-Public Property Get CurName() As String
-    CurName = sCurName
+Public Property Get CreatorCode() As String
+    Let CreatorCode = sCreatorCode
 End Property
 
-Public Property Let CurName(ByVal s As String)
-    Let sCurName = s
+Public Property Let CreatorCode(ByVal s As String)
+    Let sCreatorCode = s
 
     If bRetrieved Then
         bRetrieved = False
@@ -50,6 +52,22 @@ Public Property Let ShortName(ByVal s As String)
     Let sShortName = s
 End Property
 
+Public Property Let Division(ByVal s As String)
+    Let sDivision = s
+End Property
+
+Public Property Get Division() As String
+    Let Division = sDivision
+End Property
+
+Public Property Let Section(ByVal s As String)
+    Let sSection = s
+End Property
+
+Public Property Get Section() As String
+    Let Section = sSection
+End Property
+
 Public Function Name(Optional ByVal Short As Boolean)
     Dim sName As String
     
@@ -69,17 +87,24 @@ Private Sub SecureRecord()
     If Not bRetrieved Then
         'check the database for an alias
         'FIXME: Properly parameterize this SQL
-        Set Rs = CurrentDb.OpenRecordset("SELECT * FROM Creators WHERE CurName = '" & Replace(CurName, "'", "''") & "'")
+        Set Rs = CurrentDb.OpenRecordset("SELECT * FROM Creators WHERE CreatorCode = '" & Replace(CreatorCode, "'", "''") & "'")
         
         If Not (Rs.EOF) Then
-            If Not IsNull(Rs!AgencyName) Then Let AgencyName = Rs!AgencyName Else Let AgencyName = ""
-            If Not IsNull(Rs!ShortName) Then Let ShortName = Rs!ShortName Else Let ShortName = ""
+            Let AgencyName = Nz(Rs!AgencyName.value)
+            Let ShortName = Nz(Rs!Agency.value)
+            Let Division = Nz(Rs!Division.value)
+            Let Section = Nz(Rs!Section.value)
+            
         Else
             'FIXME: Pitch a fit somehow
             Let AgencyName = ""
             Let ShortName = ""
+            Let Division = ""
+            Let Section = ""
+            
         End If
         
+        Rs.Close
         Set Rs = Nothing
         
         bRetrieved = True

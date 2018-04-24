@@ -46,9 +46,9 @@ End Property
 Public Property Get Scans() As Collection
     Dim cScans As New Collection
     
-    For I = 0 To ListControl.ListCount - 1
-        cScans.Add ListControl.ItemData(I)
-    Next I
+    For i = 0 To ListControl.ListCount - 1
+        cScans.Add ListControl.ItemData(i)
+    Next i
     
     Set Scans = cScans
 End Property
@@ -77,7 +77,7 @@ End Sub
 '*
 '* @param String FileName
 '**
-Public Sub View(FileName As String)
+Public Sub View(ByVal FileName As String)
     BrowserControl.Navigate2 FileName
 End Sub
 
@@ -121,32 +121,51 @@ Public Sub DetachSelectedFromRecord(Optional ByVal ID As Integer)
 
 End Sub
 
-Public Sub AttachToRecord(ByVal Location As String, Optional ByVal ID As Integer)
+Public Sub AttachToRecord(Location As Variant, Optional NewRecord As Boolean, Optional ByVal ID As Integer)
+    Dim i As Integer
+    Dim f As Object
+    Dim sACCN As String
+    Dim sDate As String
+    Dim aParts() As String
+    Dim sCreator As String
     Dim oAccnScan As New cAccnScan
-
+    
     'Location should contain a full path, e.g. "S:\CollectionsManagement\AgencyFiles\Local\03_MontgomeryCounty\ControlFiles\03_1994_0451_19940912.PDF"
     'Could be sourced to a DOS drive letter ("S:") or to a a network authority ("\\adahfs1\GR-Collections")
     'In any case, cAccnScan was written to help parse all this, so DRY.
-    Let oAccnScan.Url = Location
-
-    'INSERT INTO AccnScan VALUES (Me!ACCN.Value, sFilePath, sFileName)
-    On Error GoTo HandleInsertError
-    If Len(ACCN) > 0 Then
-        putAccnScanAttachments ACCN, oAccnScan.FileName, oAccnScan.FilePath
-    Else
-        'Insert using numeric ID for NonAccessioned
-        Err.Raise vbObjectError + 255, "AttachToRecord not implemented without ACCN"
+    If TypeName(Location) = "String" Then
+        Let oAccnScan.Url = Location
+    ElseIf TypeName(Location) = "cAccnScan" Then
+        Set oAccnScan = Location
     End If
-    On Error GoTo 0
+    
+    'INSERT INTO AccnScan VALUES (Me!ACCN.Value, sFilePath, sFileName)
+    Dim oAx As cAccession
+    If Len(ACCN) > 0 Then
+        Let oAccnScan.ACCN = ACCN
+    End If
+    
+    If Len(ACCN) > 0 Then
+
+        On Error GoTo InsertIntoAccessionsCatch
+        oAccnScan.InsertIntoAccessions OnCurrent:=True, NewRecord:=NewRecord, ListView:=Me
+        On Error GoTo 0
+
+    Else
+        
+        'Insert using numeric ID for NonAccessioned
+        Err.Raise NOHOOK_EXCEPTION, "cAccnScanListView.AttachToRecord", "Not implemented for empty ACCN"
+    
+    End If
     
     ListControl.Requery
 
     Exit Sub
     
-HandleInsertError:
-    MsgBox "FIXME: INSERT ERROR..."
-    
-    ListControl.Requery
+InsertIntoAccessionsCatch:
+    MsgBox "INSERT ERROR: " & Err.Source & " - " & Err.Description
+
+    Resume Next
     
 End Sub
 
@@ -155,7 +174,9 @@ Public Sub ReloadPDF(Optional ByVal selectedFileName As String, Optional ByVal s
     Dim hasPDF As Boolean
     
     Dim cAttachmentPaths As Collection
-    Dim vFilePath As Variant
+    Dim vScan As Variant
+    
+    Dim oAccession As cAccession
     
     Dim oSelection As cAccnScan
     Dim oComparison As cAccnScan
@@ -173,7 +194,8 @@ Public Sub ReloadPDF(Optional ByVal selectedFileName As String, Optional ByVal s
     '--| (1) First: Either get an existing file system path, or secure one for an attached blob |---
     'If we have a way to do so then get a Collection of attached files
     If Len(ACCN) > 0 Then
-        Set cAttachmentPaths = getAccnScanAttachments(ACCN)
+        Set oAccession = New cAccession: oAccession.ACCN = ACCN
+        Set cAttachmentPaths = oAccession.Attachments
     Else
         Set cAttachmentPaths = New Collection
     End If
@@ -191,18 +213,15 @@ Public Sub ReloadPDF(Optional ByVal selectedFileName As String, Optional ByVal s
     'Use AccnScans table records to get FilePath and FileName
     If cAttachmentPaths.Count > 0 Then
         'Step through the Collection of attached files, checking each against selection
-        For Each vFilePath In cAttachmentPaths
-            Set oComparison = New cAccnScan: With oComparison
-                .FileName = vFilePath(2)
-                .FilePath = vFilePath(1)
-            End With
+        For Each vScan In cAttachmentPaths
+            Set oComparison = vScan
 
             If (Not selectionProvided) Or (oComparison.Url = oSelection.Url) Then
                 sFilePathToView = oComparison.Url
                 hasPDF = True
                 Exit For
             End If
-        Next vFilePath
+        Next vScan
         
     'There doesn't seem to be anything anywhere, so all we've got is a blank
     Else
