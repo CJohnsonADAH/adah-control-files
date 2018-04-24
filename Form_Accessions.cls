@@ -71,6 +71,7 @@ Private Sub cmdAddScan_Click()
     Dim sLocator As Variant
     Dim sPrevious As String
     Dim sFilePath As String
+    Dim asFileFolderSlugs(1 To 2) As String
     Dim sFileName As String
     Dim bWasNewRecord As Boolean
     Dim bAttachmentError As Boolean
@@ -91,9 +92,12 @@ Private Sub cmdAddScan_Click()
             Set oAccnScan = New cAccnScan: With oAccnScan
                 .Url = sItem
             End With
-            
+
+            Let asFileFolderSlugs(1) = oAccnScan.FileFolderSlug
+
             If Not oAccnScan.isOnDefaultDrive Then
                 If Len(sDestinationFolder) = 0 Then
+                
                     Set dlgDestinationFolder = Application.FileDialog(msoFileDialogFolderPicker): With dlgDestinationFolder
                         .Title = "Destination Folder"
                     End With
@@ -106,6 +110,7 @@ Private Sub cmdAddScan_Click()
                 If Len(sDestinationFolder) > 0 Then
                     oAccnScan.doCopyTo NewPath:=sDestinationFolder
                     Let sItem = oAccnScan.Url
+                    Let asFileFolderSlugs(2) = oAccnScan.FileFolderSlug
                 End If
             End If
             
@@ -145,7 +150,7 @@ AttachToRecordCatch:
         
         If Me.NewRecord Then
             AccnScanListView.View FileName:=sItem
-            DoFillOutAndSave FileName:=sItem, OK:=Fixed
+            DoFillOutAndSave FileName:=sItem, Slugs:=asFileFolderSlugs, OK:=Fixed
         End If
     End If
     
@@ -157,10 +162,13 @@ AttachToRecordCatch:
     End If
 End Sub
 
-Private Sub DoFillOutAndSave(ByVal FileName As String, ByRef OK As Boolean)
+Private Sub DoFillOutAndSave(ByVal FileName As String, ByRef Slugs() As String, ByRef OK As Boolean)
+    Dim I As Integer
+    
     Dim sDetails As String
     Dim rDetails As AccessionDetails
-
+    Dim oFolder As cCabinetFolder
+    
     FillOutFormFromAttachment FileName
     If Len(Nz(Me!ACCN.value)) = 0 Then
         Let sDetails = InputBox("Accession Number")
@@ -188,7 +196,36 @@ Private Sub DoFillOutAndSave(ByVal FileName As String, ByRef OK As Boolean)
 
         Let Me!AddedToDatabaseBy.value = getUserName
         Let Me!AddedToDatabaseOn.value = Now
-        Let Me!CabinetFolder.value = sLastCabinetFolderLabel
+        
+        Set oFolder = New cCabinetFolder: With oFolder
+            .FileSourcePath = ""
+        End With
+        
+        For I = LBound(Slugs) To UBound(Slugs)
+            If Len(Slugs(I)) > 0 Then
+                Set oFolder = New cCabinetFolder: With oFolder
+                .FileSourcePath = Slugs(I)
+                End With
+                
+                If oFolder.ID <> 0 Then
+                    Let Me!CabinetFolder.value = oFolder.Label
+                    Exit For
+                Else
+                    Set oFolder = New cCabinetFolder: With oFolder
+                    .FilePath = Slugs(I)
+                    End With
+                    
+                    If oFolder.ID <> 0 Then
+                        Let Me!CabinetFolder.value = oFolder.Label
+                        Exit For
+                    End If
+                End If
+            End If
+        Next I
+        
+        If Len(Nz(Me!CabinetFolder.value)) = 0 Then
+            Let Me!CabinetFolder.value = sLastCabinetFolderLabel
+        End If
         
         On Error GoTo cmdSaveRecordCatch
         DoCmd.RunCommand acCmdSaveRecord
@@ -206,7 +243,7 @@ cmdSaveRecordCatch:
 End Sub
 
 Private Function GetDetails(ByVal File As String, Optional ByVal s As String) As AccessionDetails
-    Dim i As Integer
+    Dim I As Integer
     Dim aParts() As String
     
     Dim oAx As New cAccession
@@ -221,12 +258,12 @@ Private Function GetDetails(ByVal File As String, Optional ByVal s As String) As
     Let aParts = Split(s, "/")
     
     If UBound(aParts) > LBound(aParts) Then
-        Let i = LBound(aParts)
-        Let oAx.ACCN = aParts(i)
+        Let I = LBound(aParts)
+        Let oAx.ACCN = aParts(I)
                 
-        Let i = LBound(aParts) + 1
+        Let I = LBound(aParts) + 1
         If CLng(oAx.Minor) = 0 Then
-            Let oAx.ACCN = aParts(i) & "." & oAx.Major
+            Let oAx.ACCN = aParts(I) & "." & oAx.Major
         End If
         Let rDetails.ACCN = oAx.ACCN
 
@@ -234,18 +271,18 @@ Private Function GetDetails(ByVal File As String, Optional ByVal s As String) As
         Let sDate = Format(oAx.Major, "0000")
                 
         'Get remaining date elements from the string
-        If aParts(i) <> sDate Then
-            If RegexMatch(aParts(i), "^[0-9]{4}$") Then
-                If CInt(aParts(i)) <= 1231 Then
-                    Let aParts(i) = Left(aParts(i), 2) & "/" & Right(aParts(i), 2)
+        If aParts(I) <> sDate Then
+            If RegexMatch(aParts(I), "^[0-9]{4}$") Then
+                If CInt(aParts(I)) <= 1231 Then
+                    Let aParts(I) = Left(aParts(I), 2) & "/" & Right(aParts(I), 2)
                 End If
             End If
-            Let sDate = sDate & "/" & aParts(i)
+            Let sDate = sDate & "/" & aParts(I)
         End If
                 
-        For i = LBound(aParts) + 2 To UBound(aParts)
-            Let sDate = sDate & "/" & aParts(i)
-        Next i
+        For I = LBound(aParts) + 2 To UBound(aParts)
+            Let sDate = sDate & "/" & aParts(I)
+        Next I
         
         Let rDetails.Date = CDate(sDate)
     ElseIf Len(s) > 0 Then
@@ -514,12 +551,12 @@ Private Sub FillOutFormFromAttachmentControls()
    'SOURCE CONTROL 1: Me!Scan, an Attachment field control
    If Me!Scan.AttachmentCount > 0 Then
         Me!Scan.CurrentAttachment = 0
-        For i = 0 To (Me!Scan.AttachmentCount - 1)
+        For I = 0 To (Me!Scan.AttachmentCount - 1)
             If regexpIsAccnScanFile.Test(Me!ScanFileName) Then
                 cAttachPaths.Add Me!ScanFileName
             End If
             Me!Scan.Forward
-        Next i
+        Next I
     End If
     
     'SOURCE CONTROL 2: Me!lstAccnScans, via AccnScanListView object
@@ -578,9 +615,9 @@ Private Sub FillCurNames()
     
     aScanDir(1) = "State"
     aScanDir(2) = "Local"
-    For i = 1 To 1
+    For I = 1 To 1
         sPattern = "*_*"
-        sDirPrefix = "\CollectionsManagement\AgencyFiles\" & aScanDir(i) & "\"
+        sDirPrefix = "\CollectionsManagement\AgencyFiles\" & aScanDir(I) & "\"
             
         f = Dir(sDrive & sDirPrefix & sPattern, vbDirectory)
         Do While Len(f) > 0
@@ -593,7 +630,7 @@ Private Sub FillCurNames()
             End If
             f = Dir()
         Loop
-    Next i
+    Next I
 
     Dim dCurNamesNoted As Dictionary
     Set dCurNamesNoted = CurNamesInCreators

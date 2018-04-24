@@ -65,72 +65,66 @@ Public Property Get PathStart() As String
 End Property
 
 Public Property Get FileFolder()
-    Dim myPath As String
-    Dim aFolders() As String
-    Dim prevFolder As String
-    Dim curFolder As Variant
-    Dim myFolder As String
     Dim oFolder As cCabinetFolder
     
-    myPath = FilePath
-    aFolders = Split(myPath, "\")
+    Set oFolder = New cCabinetFolder: With oFolder
+        .FilePath = FileFolderSlug
+    End With
     
-    If UBound(aFolders) > 0 Then
-        If UBound(aFolders) - LBound(aFolders) > 0 Then
-            myFolder = aFolders(UBound(aFolders) - 1)
-        Else
-            myFolder = aFolders(UBound(aFolders))
-        End If
+    If oFolder.ID = 0 Then
+        oFolder.Insert
+    End If
         
-        Set oFolder = New cCabinetFolder
-        Let oFolder.FilePath = myFolder
-        If oFolder.ID = 0 Then
-            oFolder.Insert
-        End If
-        
-        If oFolder.ID <> 0 Then
-            myFolder = oFolder.Label
-        End If
-        
-    Else
-        myFolder = ""
+    If oFolder.ID <> 0 Then
+        Let FileFolder = oFolder.Label
     End If
     
-    '
-    'prevFolder = ""
-    'For Each curFolder In aFolders
-    '    myFolder = prevFolder & " " & JoinCollection(" ", camelCaseSplitString(curFolder & ""))
-    '
-    '    'when we move to the next curFolder, preserve this one as previous
-    '    prevFolder = JoinCollection(" ", camelCaseSplitString(curFolder & ""))
-    'Next curFolder
-    
-    FileFolder = myFolder
-    
 End Property
+
+Public Function FileFolderSlug() As String
+    Dim myPath As String
+    Dim I As Integer
+    Dim sSlug As String
+    Dim asFolders() As String
+    
+    Let myPath = FilePath
+    Let asFolders = Split(myPath, "\")
+    
+    If UBound(asFolders) >= LBound(asFolders) Then
+        Let I = UBound(asFolders)
+        Do Until (Len(sSlug) > 0) Or (I < LBound(asFolders))
+            If Not RegexMatch(asFolders(I), "Cont[r]?ol\s*File[s]?") Then
+                Let sSlug = asFolders(I)
+            End If
+            Let I = I - 1
+        Loop
+    End If
+    
+    Let FileFolderSlug = sSlug
+End Function
 
 Public Property Let Url(sUrl As String)
     Dim aPath() As String
     Dim sPath As String
-    Dim i As Integer
+    Dim I As Integer
     
     aPath = Split(sUrl, "\")
     FileName = aPath(UBound(aPath))
     
     sDrive = ""
     sPath = ""
-    For i = LBound(aPath) To UBound(aPath) - 1
-        If Right(aPath(i), 1) = ":" Then
-            sDrive = aPath(i)
-        ElseIf Len(aPath(i)) = 0 Then
+    For I = LBound(aPath) To UBound(aPath) - 1
+        If Right(aPath(I), 1) = ":" Then
+            sDrive = aPath(I)
+        ElseIf Len(aPath(I)) = 0 Then
             'NOOP
-        ElseIf (Len(sDrive) = 0) And (aPath(i) = PathStart) Then
+        ElseIf (Len(sDrive) = 0) And (aPath(I) = PathStart) Then
             sDrive = "\" & sPath
-            sPath = "\" & aPath(i)
+            sPath = "\" & aPath(I)
         Else
-            sPath = sPath & "\" & aPath(i)
+            sPath = sPath & "\" & aPath(I)
         End If
-    Next i
+    Next I
     FilePath = sPath
 End Property
 
@@ -231,7 +225,7 @@ Public Function Creator() As String
     Dim cWords As Collection
     Dim sSlug As String
     Dim aPath() As String
-    Dim i As Integer
+    Dim I As Integer
     
     Set oRefs = MetadataFromFileName
     
@@ -240,18 +234,18 @@ Public Function Creator() As String
         Creator = oRefs(0)
     Else
         Let aPath = Split(FilePath, "\")
-        Let i = UBound(aPath)
+        Let I = UBound(aPath)
         
-        If i >= LBound(aPath) Then
-            If RegexMatch(aPath(i), "^Contr?olFiles?$") Then
-                Let i = i - 1
+        If I >= LBound(aPath) Then
+            If RegexMatch(aPath(I), "^Contr?olFiles?$") Then
+                Let I = I - 1
             End If
         End If
         
-        If i >= LBound(aPath) Then
-            Let Creator = aPath(i)
+        If I >= LBound(aPath) Then
+            Let Creator = aPath(I)
             
-            Let sSlug = aPath(i)
+            Let sSlug = aPath(I)
             Set cWords = camelCaseSplitString(sSlug)
             
             If cWords.Count > 0 Then
@@ -425,7 +419,7 @@ Public Sub ConvertFileName(ByRef Result As String)
     Dim sNewFileName As String
     Dim oRef As Variant
     Dim cRefs As Variant
-    Dim i As Integer
+    Dim I As Integer
     
     Dim sOldFull As String
     Dim sNewFull As String
@@ -482,8 +476,8 @@ FinallyRename:
 CatchRename:
     Debug.Print "DID/COULD NOT RENAME: ", Url, "TRY AGAIN..."
     Let sOldNew = sNewFileName
-    Let i = i + 1
-    Let sNewFileName = MetaD.Item(0) & MetaD.Item(1) & MetaD.Item(2) & MetaD.Item(6) & "-" & Format(i, "00") & ".PDF" & MetaD.Item(7)
+    Let I = I + 1
+    Let sNewFileName = MetaD.Item(0) & MetaD.Item(1) & MetaD.Item(2) & MetaD.Item(6) & "-" & Format(I, "00") & ".PDF" & MetaD.Item(7)
     
     If sOldNew <> sNewFileName Then Resume TryRename
     Resume FinallyRename
@@ -499,10 +493,10 @@ Public Function isOnDefaultDrive() As Boolean
     Set FO(2) = FSO.GetFolder(getDefaultDrive & "\")
     
     'We need to account for the possibility of mapped network drives
-    Dim i As Integer
-    For i = 1 To 2
-        Let driveNames(i) = IIf(Len(FO(i).Drive.ShareName) > 0, FO(i).Drive.ShareName, FO(i).Drive.Path)
-    Next i
+    Dim I As Integer
+    For I = 1 To 2
+        Let driveNames(I) = IIf(Len(FO(I).Drive.ShareName) > 0, FO(I).Drive.ShareName, FO(I).Drive.Path)
+    Next I
     
     Let isOnDefaultDrive = (driveNames(1) = driveNames(2))
 End Function
@@ -532,7 +526,7 @@ Private Function retrieveScanFilePath()
     Dim vScanDir As Variant
     Dim cScanDirs As New Collection
     Dim sDirPrefix As String
-    Dim i As Integer
+    Dim I As Integer
     
     cScanDirs.Add "\AgencyState"
     cScanDirs.Add "\AgencyLocal"
