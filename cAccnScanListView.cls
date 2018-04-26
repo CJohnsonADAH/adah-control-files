@@ -131,7 +131,7 @@ Public Sub DetachSelectedFromRecord(Optional ByVal ID As Integer)
         
         If Len(ACCN) = 0 Then
             'Delete using numeric ID...
-            Err.Raise NOHOOK_EXCEPTION, "DetachSelectedFromRecord Not Implemented Without ACCN"
+            Err.Raise EX_NOHOOK, "DetachSelectedFromRecord Not Implemented Without ACCN"
         Else
             deleteAccnScanAttachments ACCN:=ACCN, FileName:=sFileName, FilePath:=sFilePath
             SuccessfullyRemoved = True

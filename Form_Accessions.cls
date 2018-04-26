@@ -149,7 +149,7 @@ AttachToRecordCatch:
     Dim Fixed As Boolean
 
     Let Fixed = False
-    If Err.Number = NOHOOK_EXCEPTION Then
+    If Err.Number = EX_NOHOOK Then
         
         If Me.NewRecord Then
             AccnScanListView.View FileName:=sItem
@@ -539,7 +539,7 @@ Private Function regexpIsAccnScanFile() As Object
     
     With oIsAccnFile
         .IgnoreCase = True
-        .pattern = "^([A-Z0-9]+)_([0-9]+)_([0-9]+)_([0-9]{4})([0-9]{2})?([0-9]{2})?.*[.]PDF(|.*)$"
+        .Pattern = "^([A-Z0-9]+)_([0-9]+)_([0-9]+)_([0-9]{4})([0-9]{2})?([0-9]{2})?.*[.]PDF(|.*)$"
     End With
 
     Set regexpIsAccnScanFile = oIsAccnFile

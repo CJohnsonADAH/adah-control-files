@@ -129,7 +129,7 @@ Function getAccnScanAttachments(ACCN As String) As Collection
     
     Dim Rs As DAO.Recordset
     Dim oQuery As DAO.QueryDef
-    Dim i As Integer, iCount As Integer
+    Dim I As Integer, iCount As Integer
 
     'check the database for comments flagged with this CollectionNumber
     On Error Resume Next: CurrentDb.QueryDefs.Delete "qScanFilesByAccn": On Error GoTo 0
@@ -348,7 +348,7 @@ Function GetCommentsOnCollection(CollectionNumber As String) As Collection
     
     Dim Rs As DAO.Recordset
     Dim oQuery As DAO.QueryDef
-    Dim i As Integer, iCount As Integer
+    Dim I As Integer, iCount As Integer
 
     'check the database for comments flagged with this CollectionNumber
     On Error Resume Next: CurrentDb.QueryDefs.Delete "qCommentsCount": On Error GoTo 0
@@ -447,92 +447,92 @@ Function camelCaseSplitString(ByVal s As String) As Collection
     
     With isUpper
         .IgnoreCase = False
-        .pattern = "^([A-Z])$"
+        .Pattern = "^([A-Z])$"
     End With
     
     With isLower
         .IgnoreCase = False
-        .pattern = "^([a-z])$"
+        .Pattern = "^([a-z])$"
     End With
     
     With isAlpha
         .IgnoreCase = False
-        .pattern = "^([A-Za-z]+)$"
+        .Pattern = "^([A-Za-z]+)$"
     End With
 
     With isUpperLower
         .IgnoreCase = False
-        .pattern = "^([A-Z][a-z])$"
+        .Pattern = "^([A-Z][a-z])$"
     End With
     
     With isWhiteSpace
         .IgnoreCase = False
-        .pattern = "^((\s|[_])+)$"
+        .Pattern = "^((\s|[_])+)$"
     End With
 
     
     Dim cWords As New Collection
     Dim c0 As String, c As String, c2 As String
-    Dim I0 As Integer, i As Integer
+    Dim I0 As Integer, I As Integer
     Dim Anchor As Integer
     Dim State As Integer
     
     Anchor = 0
-    i = 1
+    I = 1
     GoTo NextWord
     
     'Finite State Machine
 NextWord:
-    If i > Len(s) Then
+    If I > Len(s) Then
         GoTo ExitMachine
     End If
     
-    c0 = Mid(s, i, 1)
+    c0 = Mid(s, I, 1)
     If isUpper.Test(c0) Then
-        Anchor = i
+        Anchor = I
         GoTo WordBeginsOnUpper
     ElseIf isLower.Test(c0) Then
-        Anchor = i
+        Anchor = I
         GoTo WordBeginsOnLower
     ElseIf isWhiteSpace.Test(c0) Then
-        Anchor = i
-        Let i = i + Len(c)
+        Anchor = I
+        Let I = I + Len(c)
         GoTo NextWord
     Else
-        Anchor = i
+        Anchor = I
         GoTo FromOtherToNextWord
     End If
 
 WordBeginsOnLower:
-    If i > Len(s) Then GoTo NextWord
-    Let c0 = c: Let c = Mid(s, i, 1)
+    If I > Len(s) Then GoTo NextWord
+    Let c0 = c: Let c = Mid(s, I, 1)
     
-    Let i = i + Len(c)
+    Let I = I + Len(c)
     GoTo ContinueWordToUpperBreak
 
 ContinueWordToUpperBreak:
-    If i > Len(s) Then GoTo NextWord
-    Let c0 = c: Let c = Mid(s, i, 1)
+    If I > Len(s) Then GoTo NextWord
+    Let c0 = c: Let c = Mid(s, I, 1)
     
     If isUpper.Test(c) Or isWhiteSpace.Test(c) Then
         GoTo ClipWord
     Else
-        i = i + Len(c)
+        I = I + Len(c)
     End If
     GoTo ContinueWordToUpperBreak
     
 WordBeginsOnUpper:
-    If i > Len(s) Then GoTo NextWord
-    Let c0 = c: c = Mid(s, i, 1)
+    If I > Len(s) Then GoTo NextWord
+    Let c0 = c: c = Mid(s, I, 1)
 
     'Move ahead to the next character
     'UPPERCase: two uppers in a row
     'MixedCase: one upper, one lower
-    Let i = i + 1
-    Let c0 = c: c = Mid(s, i, 1)
+    Let I = I + 1
+    Let c0 = c: c = Mid(s, I, 1)
     
     If isLower.Test(c) Then
-        Let i = i + Len(c)
+        Let I = I + Len(c)
         GoTo ContinueWordToUpperBreak
     ElseIf isUpper.Test(c) Then
         GoTo ContinueWordToUpperLowerBreak
@@ -543,39 +543,39 @@ WordBeginsOnUpper:
     End If
     
 ContinueWordToUpperLowerBreak:
-    If i > Len(s) Then GoTo NextWord
-    Let c0 = c: c = Mid(s, i, 1): c2 = Mid(s, i, 2)
+    If I > Len(s) Then GoTo NextWord
+    Let c0 = c: c = Mid(s, I, 1): c2 = Mid(s, I, 2)
 
     If isUpperLower.Test(c2) Or isWhiteSpace.Test(c) Then
         GoTo ClipWord
     ElseIf isAlpha.Test(c) Then
-        i = i + 1
+        I = I + 1
         GoTo ContinueWordToUpperLowerBreak
     Else
-        i = i + 1
+        I = I + 1
         GoTo ContinueWordToUpperLowerBreak
     End If
     
 FromOtherToNextWord:
-    If i > Len(s) Then GoTo NextWord
-    c = Mid(s, i, 1)
+    If I > Len(s) Then GoTo NextWord
+    c = Mid(s, I, 1)
     
     If isUpper.Test(c) Or isLower.Test(c) Or isWhiteSpace.Test(c) Then
         GoTo ClipWord
     Else
-        i = i + 1
+        I = I + 1
         GoTo FromOtherToNextWord
     End If
 
 ClipWord:
-    If Anchor < i Then
-        cWords.Add Mid(s, Anchor, i - Anchor)
+    If Anchor < I Then
+        cWords.Add Mid(s, Anchor, I - Anchor)
     End If
     GoTo NextWord
 
 ExitMachine:
     If Anchor > 0 Then
-        cWords.Add Mid(s, Anchor, i - Anchor)
+        cWords.Add Mid(s, Anchor, I - Anchor)
     End If
     
 '    Anchor = 1
@@ -641,15 +641,18 @@ Public Function ConvertAccnScanFileNames()
     
 End Function
 
-Public Function ConvertPDFs()
-    Dim oAccnScan As New cAccnScan
+Public Function RenamePDFs(Optional ByVal LogLevel As Integer)
+    Dim oAccnScan As cAccnScan
     
     Dim sRelativePath As String
     Dim f As String
     Dim sPattern As String
     Dim aWords() As String
-    Dim cSearchDirs As New Collection
-    Dim vSearchDir As Variant
+    
+    Dim sCreator As String
+    Dim sCurName As String
+    
+    Dim sDrive As String
     
     Dim sFileName As String
     Dim sNewFileName As String
@@ -658,70 +661,75 @@ Public Function ConvertPDFs()
     
     Dim cBits As Collection
     
-    Dim vScanDir As Variant
-    Dim cScanDirs As New Collection
+    Dim cSourcePaths As Collection, vSourcePath As Variant
+    Dim cSearchDirs As Collection, vSearchDir As Variant
+    
     Dim sDirPrefix As String
-    Dim i As Integer
+    Dim I As Integer
     
     Dim Rs As DAO.Recordset
+        
+    Set oAccnScan = New cAccnScan
     
-    cScanDirs.Add "\AgencyState"
-    cScanDirs.Add "\AgencyLocal"
-    cScanDirs.Add "\AgencyCourts"
-    cScanDirs.Add "\AgencyUS"
-    cScanDirs.Add "\CollectionsManagement\AgencyFiles\State"
-    cScanDirs.Add "\CollectionsManagement\AgencyFiles\Local"
+    Set cSourcePaths = New Collection: With cSourcePaths
+        .Add "\AgencyState"
+        .Add "\AgencyLocal"
+        .Add "\AgencyCourts"
+        .Add "\AgencyUS"
+        .Add "\CollectionsManagement\AgencyFiles\State"
+        .Add "\CollectionsManagement\AgencyFiles\Local"
+    End With
+    Let sDrive = oAccnScan.Drive
     
-    For Each vScanDir In cScanDirs
+    Set cSearchDirs = New Collection
+    
+    For Each vSourcePath In cSourcePaths
         sPattern = "*"
     
-        sDirPrefix = vScanDir & "\"
-        f = Dir(oAccnScan.Drive & sDirPrefix & sPattern, vbDirectory)
+        sDirPrefix = CStr(vSourcePath) & "\"
+        f = Dir(sDrive & sDirPrefix & sPattern, vbDirectory)
         Do While Len(f) > 0
             If (f <> ".") And (f <> "..") Then
-                cSearchDirs.Add (sDirPrefix & f & "\ContolFile")
-                cSearchDirs.Add (sDirPrefix & f & "\ContolFiles")
-                cSearchDirs.Add (sDirPrefix & f & "\ControlFile")
-                cSearchDirs.Add (sDirPrefix & f & "\ControlFiles")
+                With cSearchDirs
+                    .Add (sDirPrefix & f & "\ContolFile")
+                    .Add (sDirPrefix & f & "\ContolFiles")
+                    .Add (sDirPrefix & f & "\ControlFile")
+                    .Add (sDirPrefix & f & "\ControlFiles")
+                End With
             End If
             f = Dir()
         Loop
-    Next vScanDir
+    Next vSourcePath
 
-    Dim sMatchDocumentation As String
-    Dim sMatchDocumentationV2 As String
-    Dim sMatchCopierScan As String
-    
-    Let sMatchDocumentation = "^([A-Z0-9]{2,3})_(Correspondence|Documentation|Administrative|Administration|Clipping|Microfilm)_(.*)([.]PDF)$"
-    Let sMatchDocumentationV2 = "^([A-Z0-9]{2,3})(Corr|Doc|Admin|Clip|Microfilm)(.*)([.]PDF)$"
-    
-    Let sMatchCopierScan = oAccnScan.MATCH_COPIER_SCAN
-    
     For Each vSearchDir In cSearchDirs
-        sPattern = oAccnScan.Drive & vSearchDir & "\*.PDF"
+        sPattern = sDrive & vSearchDir & "\*.PDF"
         Let sFileName = Dir(sPattern, vbNormal)
         Do While Len(sFileName) > 0
-            If RegexMatch(sFileName, oAccnScan.MATCH_FILENAME_V1) Then
+            Set oAccnScan = New cAccnScan: With oAccnScan
+                Let .Url = sDrive & vSearchDir & "\" & sFileName
+            End With
+            
+            If oAccnScan.IsAccnSheet(Version:=2) Then
                 ' NOOP
-            ElseIf RegexMatch(sFileName, oAccnScan.MATCH_FILENAME_V2) Then
+            ElseIf oAccnScan.IsAccnSheet(Version:=1) Then
                 ' NOOP
-            ElseIf RegexMatch(sFileName, sMatchDocumentationV2) Then
+            ElseIf oAccnScan.IsDocumentationSheet(Version:=2) Then
                 ' NOOP
-            ElseIf RegexMatch(sFileName, sMatchDocumentation) Then
+            ElseIf oAccnScan.IsDocumentationSheet(Version:=1) Then
                 Set cBits = New Collection
-                cBits.Add RegexComponent(sFileName, sMatchDocumentation, 1)
-                cBits.Add Abbreviate(RegexComponent(sFileName, sMatchDocumentation, 2))
-                cBits.Add RegexComponent(sFileName, sMatchDocumentation, 3)
-                cBits.Add RegexComponent(sFileName, sMatchDocumentation, 4)
+                cBits.Add RegexComponent(sFileName, oAccnScan.MATCH_DOCUMENTATION_V1, 1)
+                cBits.Add oAccnScan.SheetTypeSlug
+                cBits.Add RegexComponent(sFileName, oAccnScan.MATCH_DOCUMENTATION_V1, 3)
+                cBits.Add RegexComponent(sFileName, oAccnScan.MATCH_DOCUMENTATION_V1, 4)
                 
                 ' Is it referenced in AccnScans?
                 Set Rs = CurrentDb.OpenRecordset("SELECT * FROM AccnScans WHERE FileName='" & Replace(sFileName, "'", "''") & "'")
                 If Rs.EOF Then
-                    Debug.Print RegexComponent(sFileName, sMatchDocumentation, 2) & " [NO DB]: ", sFileName, JoinCollection("", cBits)
-                    Name (oAccnScan.Drive & vSearchDir & "\" & sFileName) As (oAccnScan.Drive & vSearchDir & "\" & JoinCollection("", cBits))
+                    Debug.Print RegexComponent(sFileName, oAccnScan.MATCH_DOCUMENTATION_V1, 2) & " [NO DB]: ", sFileName, JoinCollection("", cBits)
+                    Name (sDrive & vSearchDir & "\" & sFileName) As (sDrive & vSearchDir & "\" & JoinCollection("", cBits))
                 Else
-                    Debug.Print RegexComponent(sFileName, sMatchDocumentation, 2) & " [DB]: ", sFileName, JoinCollection("", cBits)
-                    Name (oAccnScan.Drive & vSearchDir & "\" & sFileName) As (oAccnScan.Drive & vSearchDir & "\" & JoinCollection("", cBits))
+                    Debug.Print RegexComponent(sFileName, oAccnScan.MATCH_DOCUMENTATION_V1, 2) & " [DB]: ", sFileName, JoinCollection("", cBits)
+                    Name (sDrive & vSearchDir & "\" & sFileName) As (sDrive & vSearchDir & "\" & JoinCollection("", cBits))
                     Rs.Edit
                     Let Rs!FileName = JoinCollection("", cBits)
                     Rs.Update
@@ -729,63 +737,126 @@ Public Function ConvertPDFs()
                 Rs.Close
                 
                 Set cBits = Nothing
-            ElseIf RegexMatch(sFileName, sMatchCopierScan) Then
+            ElseIf RegexMatch(sFileName, oAccnScan.MATCH_COPIER_SCAN) Then
                 
                 ' Is it referenced in AccnScans?
                 Set Rs = CurrentDb.OpenRecordset("SELECT * FROM AccnScans LEFT JOIN Accessions ON (AccnScans.ACCN=Accessions.ACCN) WHERE FileName='" & Replace(sFileName, "'", "''") & "'")
                 If Rs.EOF Then
-                    Debug.Print "COPIER SCAN UNPROCESSED [NO DB]: ", sFileName
+                    If LogLevel = 0 Or LogLevel > 1 Then
+                        Debug.Print "COPIER SCAN UNPROCESSED [NO DB]: ", sFileName
+                    End If
                 Else
-                    Let sFullPath = oAccnScan.Drive & vSearchDir & "\" & sFileName
+                    Let sFullPath = sDrive & vSearchDir & "\" & sFileName
                     If Rs!FileNameToBeFixed.value Then
-                        If Len(Nz(Rs.Fields("AccnScans.ACCN").value)) > 0 Then
+                        Let sCreator = Nz(Rs!Creator.value)
+                        If Len(sCreator) = 0 Then
+                            Let sCreator = oAccnScan.Creator
+                        End If
+                        Let sCurName = GetCurNameFromCreatorCode(sCreator)
+                        
+                        If Len(Nz(Rs!SheetType.value)) > 0 And UCase(Nz(Rs!SheetType.value)) <> "ACCN" Then
                             
-                            Let sNewFileName = GetCurNameFromCreatorCode(Nz(Rs!Creator)) & Replace(Nz(Rs.Fields("AccnScans.ACCN").value), ".", "") & ".PDF"
+                            Let oAccnScan.SheetType = Nz(Rs!SheetType.value)
+                            Let sNewFileName = sCurName & oAccnScan.SheetTypeSlug & GetDateSlug(Rs!Timestamp.value) & ".PDF"
+
+                        ElseIf Len(Nz(Rs.Fields("AccnScans.ACCN").value)) > 0 Then
+                            
+                            Let sNewFileName = sCurName & Replace(Nz(Rs.Fields("AccnScans.ACCN").value), ".", "") & ".PDF"
+                            
                         Else
                             Let sNewFileName = sFileName
                         End If
                         
-                        Let sNewFullPath = oAccnScan.Drive & vSearchDir & "\" & sNewFileName
-                    
-                        Debug.Print "COPIER SCAN [DB]: ", sFullPath, "=>", sNewFileName
+                        Let sNewFullPath = sDrive & vSearchDir & "\" & sNewFileName
+                        
+                        If LogLevel = 0 Or LogLevel > 0 Then
+                            Debug.Print "COPIER SCAN [DB]: ", sFullPath, "=>", sNewFileName
+                        End If
+                        
+                        On Error GoTo CatchNameAsFailure
                         Name sFullPath As sNewFullPath
+                        On Error GoTo 0
                         Rs.Edit
                         Let Rs!FileName = sNewFileName
                         Let Rs!FileNameToBeFixed = False
                         Rs.Update
                     Else
-                        Debug.Print "COPIER SCAN UNPROCESSED [DB]: ", sFileName
+                        If LogLevel = 0 Or LogLevel > 1 Then
+                            Debug.Print "COPIER SCAN UNPROCESSED [DB]: ", sFileName
+                        End If
                     End If
                 End If
                 Rs.Close
                 
             Else
-                Debug.Print "MISC UNPROCESSED: ", sFileName
+                If LogLevel = 0 Or LogLevel > 2 Then
+                    Debug.Print "MISC UNPROCESSED: ", sFileName
+                End If
             End If
             Let sFileName = Dir
         Loop
     Next vSearchDir
-    Debug.Print "... Done."
     
-End Function
-
-Public Function Abbreviate(Text As String)
-    Let Abbreviate = Text
+    If LogLevel = 0 Or LogLevel > 0 Then
+        Debug.Print "... Done."
+    End If
+    Exit Function
     
-    Select Case Text
-    Case "Correspondence":
-        Let Abbreviate = "Corr"
-    Case "Documentation":
-        Let Abbreviate = "Doc"
-    Case "Administrative":
-        Let Abbreviate = "Admin"
-    Case "Administration":
-        Let Abbreviate = "Admin"
-    Case "Clipping":
-        Let Abbreviate = "Clip"
-    End Select
+CatchNameAsFailure:
+    Dim Fixed As Boolean
+    Dim Ignore As Boolean
+    
+    Dim Disambiguator_Pattern As String
+    Dim Disambiguator As String
+    
+    If Err.Number = EX_FILEALREADYEXISTS Then
+        Let Disambiguator_Pattern = "(-([0-9]+))?([.][^.]+)$"
+        Let Disambiguator = RegexComponent(sNewFileName, Disambiguator_Pattern, 2)
+        If Len(Disambiguator) > 0 Then
+            Let Disambiguator = Format(Val(Disambiguator) + 1, "0")
+        Else
+            Let Disambiguator = "2"
+        End If
+        
+        Let sNewFileName = RegexReplace(sNewFileName, Disambiguator_Pattern, "-" & Disambiguator & "$3")
+        Let sNewFullPath = sDrive & vSearchDir & "\" & sNewFileName
+        Let Fixed = True
+    ElseIf Err.Number = EX_FILEPERMISSIONDENIED Then
+        Debug.Print "!!!", "Could not rename [" & sFullPath & "] to [" & sNewFullPath & "]: permission denied"
+    End If
+    
+    If Fixed Then
+        Resume
+    ElseIf Ignore Then
+        Resume Next
+    Else
+        Err.Raise EX_RENAMEFAILED, "ModControlFilesDatabase::ConvertPDFs", "Failed to rename [" & sFileName & "] to [" & sNewFileName & "]"
+    End If
+    
 End Function
 
 Public Function GetCurNameFromCreatorCode(Code As String) As String
     Let GetCurNameFromCreatorCode = Left(Code, InStr(1, Code & "-", "-") - 1)
+End Function
+
+Public Function GetDateSlug(Timestamp As Variant, Optional ByVal OmitTime As Boolean, Optional ByVal Default As Variant) As String
+    Dim sDefault As String
+    Dim sDate As String
+    Dim sTime As String
+    
+    If IsMissing(Default) Then
+        Let sDefault = "ND"
+    Else
+        Let sDefault = CStr(Default)
+    End If
+    
+    If IsNull(Timestamp) Or Len(Nz(Timestamp)) = 0 Then
+        Let GetDateSlug = sDefault
+    Else
+        Let sDate = Format(Timestamp, "YYYYmmdd")
+        If OmitTime Or Format(Timestamp, "HMS") <> "000" Then
+            Let sDate = sDate & "_" & Format(Timestamp, "HM")
+        End If
+        Let GetDateSlug = sDate
+    End If
 End Function
