@@ -15,7 +15,11 @@ Private sDrive As String
 Private sFilePath As String
 Private sFileName As String
 Private sFileNameCorrected As String
+Private sSheetType As String
+Private bSheetTypeSet As Boolean
 Private sACCN As String
+
+Private dSheetTypeSlugs As Dictionary
 
 '**
 '* Get cAccnScan::FilePath: get the filesystem path of an AccnScan file
@@ -158,6 +162,29 @@ Public Property Get Drive() As String
     Drive = sDrive
 End Property
 
+Public Property Get SheetType() As String
+    Let SheetType = sSheetType
+    
+    If Not bSheetTypeSet Then
+        If IsAccnSheet Then
+            Let SheetType = "ACCN"
+        ElseIf IsDocumentationSheet(Version:=2) Then
+            Let SheetType = GetSheetTypeFromSlug(RegexComponent(FileName, MATCH_DOCUMENTATION_V1, 2))
+        ElseIf IsDocumentationSheet(Version:=1) Then
+            Let SheetType = RegexComponent(FileName, MATCH_DOCUMENTATION_V2, 2)
+        End If
+    End If
+End Property
+
+Public Property Let SheetType(s As String)
+    Let sSheetType = s
+    Let bSheetTypeSet = True
+End Property
+
+Public Function SheetTypeSlug()
+    Let SheetTypeSlug = GetSlugFromSheetType(SheetType)
+End Function
+
 Public Function Exists() As Boolean
     Let Exists = Len(Dir(Drive & FilePath & "\" & FileName)) > 0
 End Function
@@ -166,15 +193,54 @@ Public Function RecordedFilePath() As String
     RecordedFilePath = sFilePath
 End Function
 
-Public Function MATCH_FILENAME_V1()
+Public Function IsAccnSheet(Optional ByVal Version As Integer) As Boolean
+    Dim Pattern As String
+    
+    Select Case Version
+    Case 1:
+        Let Pattern = MATCH_FILENAME_V1
+    Case 2:
+        Let Pattern = MATCH_FILENAME_V2
+    Case Else:
+        Let Pattern = "(" & MATCH_FILENAME_V1 & "|" & MATCH_FILENAME_V2 & ")"
+    End Select
+    
+    Let IsAccnSheet = RegexMatch(FileName, Pattern)
+
+End Function
+
+Public Function IsDocumentationSheet(Optional ByVal Version As Integer) As Boolean
+    Dim Pattern As String
+    
+    Select Case Version
+    Case 1:
+        Let Pattern = MATCH_DOCUMENTATION_V1
+    Case 2:
+        Let Pattern = MATCH_DOCUMENTATION_V2
+    Case Else:
+        Let Pattern = "(" & MATCH_DOCUMENTATION_V1 & "|" & MATCH_DOCUMENTATION_V2 & ")"
+    End Select
+
+    Let IsDocumentationSheet = RegexMatch(FileName, Pattern)
+End Function
+
+Public Function MATCH_FILENAME_V1() As String
     Let MATCH_FILENAME_V1 = "^([A-Z0-9]+)_([0-9]+)_([0-9]+)_([0-9]{4})?([0-9]{2})?([0-9]{2})?(.*)[.]PDF(|.*)$"
 End Function
 
-Public Function MATCH_FILENAME_V2()
+Public Function MATCH_FILENAME_V2() As String
     Let MATCH_FILENAME_V2 = "^([A-Z0-9]{2,3})([0-9]{4})([0-9]{4})()()()(.*)[.]PDF(|.*)$"
 End Function
 
-Public Function MATCH_COPIER_SCAN()
+Public Function MATCH_DOCUMENTATION_V1() As String
+    Let MATCH_DOCUMENTATION_V1 = "^([A-Z0-9]{2,3})_(Correspondence|Documentation|Administrative|Administration|Clipping|Microfilm)_(.*)([.]PDF)$"
+End Function
+
+Public Function MATCH_DOCUMENTATION_V2() As String
+    Let MATCH_DOCUMENTATION_V2 = "^([A-Z0-9]{2,3})(Corr|Doc|Admin|Clip|Microfilm)(.*)([.]PDF)$"
+End Function
+
+Public Function MATCH_COPIER_SCAN() As String
     Let MATCH_COPIER_SCAN = "^copier[.]archives@archives[.]alabama[.]gov_([0-9]+)_([0-9]+)([.]PDF)$"
 End Function
 
@@ -195,7 +261,7 @@ Public Function MetadataFromFileName() As Variant
     End With
     
     For Each vPattern In cPatterns
-        oIsAccnFile.pattern = vPattern
+        oIsAccnFile.Pattern = vPattern
         Set cRefs = oIsAccnFile.Execute(FileName)
         If cRefs.Count > 0 Then
             For Each oRef In cRefs
@@ -436,12 +502,12 @@ Public Sub ConvertFileName(ByRef Result As String)
     
     With oIsOldAccnFile
         .IgnoreCase = True
-        .pattern = MATCH_FILENAME_V1
+        .Pattern = MATCH_FILENAME_V1
     End With
     
     With reIsCopierScan
         .IgnoreCase = True
-        .pattern = MATCH_COPIER_SCAN
+        .Pattern = MATCH_COPIER_SCAN
     End With
     
     Set cRefs = oIsOldAccnFile.Execute(FileName)
@@ -585,3 +651,44 @@ Private Function retrieveScanFilePath()
     
 End Function
 
+Public Function GetSheetTypeFromSlug(Slug As String) As String
+    Dim vType As Variant
+    
+    Let GetSheetTypeFromSlug = Slug
+    
+    For Each vType In dSheetTypeSlugs.Keys()
+        If UCase(Slug) = UCase(dSheetTypeSlugs.Item(vType)) Then
+            Let GetSheetTypeFromSlug = CStr(vType)
+            Exit For
+        End If
+    Next vType
+    
+End Function
+
+Public Function GetSlugFromSheetType(SheetType As String) As String
+    Dim vType As Variant
+    
+    Let GetSlugFromSheetType = SheetType
+    
+    For Each vType In dSheetTypeSlugs.Keys()
+        If UCase(SheetType) = UCase(CStr(vType)) Then
+            Let GetSlugFromSheetType = CStr(dSheetTypeSlugs.Item(vType))
+            Exit For
+        End If
+    Next vType
+End Function
+
+Private Sub Class_Initialize()
+    Set dSheetTypeSlugs = New Dictionary: With dSheetTypeSlugs
+        .Add Key:="Correspondence", Item:="Corr"
+        .Add Key:="Documentation", Item:="Doc"
+        .Add Key:="Administrative", Item:="Admin"
+        .Add Key:="Administration", Item:="Admin"
+        .Add Key:="Clipping", Item:="Clip"
+    End With
+End Sub
+
+Private Sub Class_Terminate()
+    dSheetTypeSlugs.RemoveAll
+    Set dSheetTypeSlugs = Nothing
+End Sub

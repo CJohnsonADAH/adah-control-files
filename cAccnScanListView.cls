@@ -10,10 +10,11 @@ Attribute VB_Exposed = False
 Option Compare Database
 Option Explicit
 
-Private oBrowserControl
-Private oListControl
-Private sRecordTable
-Private sACCN
+Private oBrowserControl As Object
+Private oListControl As Object
+Private oForm As Object
+Private sRecordTable As String
+Private sACCN As String
 
 Public Property Get ACCN() As String
     ACCN = sACCN
@@ -39,16 +40,35 @@ Public Property Get ListControl() As Object
     Set ListControl = oListControl
 End Property
 
+Public Property Get Form() As Object
+    Set Form = oForm
+End Property
+
+Public Property Set Form(o As Object)
+    Set oForm = o
+End Property
+
 Public Property Get HasScans() As Boolean
-    Let HasScans = (ListControl.ListCount > 0)
+    If Not ListControl Is Nothing Then
+        Let HasScans = (ListControl.ListCount > 0)
+    ElseIf Not Form Is Nothing Then
+        Let HasScans = (Len(Nz(Form!FileName)) > 0)
+    Else
+        Let HasScans = False
+    End If
 End Property
 
 Public Property Get Scans() As Collection
+    Dim I As Integer
     Dim cScans As New Collection
     
-    For I = 0 To ListControl.ListCount - 1
-        cScans.Add ListControl.ItemData(I)
-    Next I
+    If Not ListControl Is Nothing Then
+        For I = 0 To ListControl.ListCount - 1
+            cScans.Add ListControl.ItemData(I)
+        Next I
+    ElseIf Not Form Is Nothing Then
+        cScans.Add Form!FileName
+    End If
     
     Set Scans = cScans
 End Property
@@ -84,11 +104,15 @@ End Sub
 Public Sub Fill(vAttachments As Variant)
     Dim vAccnScan As Variant
     
-    ListControl.Requery
+    If Not ListControl Is Nothing Then
+        ListControl.Requery
+    End If
 End Sub
 
 Public Sub ClearList()
-    ListControl.Requery
+    If Not ListControl Is Nothing Then
+        ListControl.Requery
+    End If
 End Sub
 
 Public Sub DetachSelectedFromRecord(Optional ByVal ID As Integer)
@@ -145,21 +169,31 @@ Public Sub AttachToRecord(Location As Variant, Optional NewRecord As Boolean, Op
         Let oAccnScan.ACCN = ACCN
     End If
     
-    If Len(ACCN) > 0 Then
-
-        On Error GoTo InsertIntoAccessionsCatch
-        oAccnScan.InsertIntoAccessions OnCurrent:=True, NewRecord:=NewRecord, ListView:=Me
-        On Error GoTo 0
-
-    Else
-        
-        'Insert using numeric ID for NonAccessioned
-        Err.Raise NOHOOK_EXCEPTION, "cAccnScanListView.AttachToRecord", "Not implemented for empty ACCN"
+    If Form Is Nothing Then
+        If Len(ACCN) > 0 Then
     
+            On Error GoTo InsertIntoAccessionsCatch
+            oAccnScan.InsertIntoAccessions OnCurrent:=True, NewRecord:=NewRecord, ListView:=Me
+            On Error GoTo 0
+    
+        Else
+            
+            'Insert using numeric ID for NonAccessioned
+            Err.Raise EX_NOHOOK, "cAccnScanListView.AttachToRecord", "Not implemented for empty ACCN"
+        
+        End If
+        
     End If
     
-    ListControl.Requery
-
+    If Not ListControl Is Nothing Then
+        ListControl.Requery
+    End If
+    
+    If Not Form Is Nothing Then
+        Let Form!FileName.value = oAccnScan.FileName
+        Let Form!FilePath.value = oAccnScan.FilePath
+    End If
+    
     Exit Sub
     
 InsertIntoAccessionsCatch:
@@ -192,14 +226,6 @@ Public Sub ReloadPDF(Optional ByVal selectedFileName As String, Optional ByVal s
     hasPDF = False
         
     '--| (1) First: Either get an existing file system path, or secure one for an attached blob |---
-    'If we have a way to do so then get a Collection of attached files
-    If Len(ACCN) > 0 Then
-        Set oAccession = New cAccession: oAccession.ACCN = ACCN
-        Set cAttachmentPaths = oAccession.Attachments
-    Else
-        Set cAttachmentPaths = New Collection
-    End If
-    
     selectionProvided = (Len(selectedFileName) + Len(selectedFilePath) > 0)
     
     Set oSelection = New cAccnScan
@@ -208,6 +234,19 @@ Public Sub ReloadPDF(Optional ByVal selectedFileName As String, Optional ByVal s
             .FileName = selectedFileName
             .FilePath = selectedFilePath
         End With
+    End If
+    
+    'If we have a way to do so then get a Collection of attached files
+    If Len(ACCN) > 0 Then
+        Set oAccession = New cAccession: oAccession.ACCN = ACCN
+        Set cAttachmentPaths = oAccession.Attachments
+    Else
+        Set cAttachmentPaths = New Collection
+        If Not Form Is Nothing Then
+            If Len(Nz(Form!FileName.value)) > 0 Then
+                cAttachmentPaths.Add oSelection
+            End If
+        End If
     End If
     
     'Use AccnScans table records to get FilePath and FileName
@@ -222,7 +261,7 @@ Public Sub ReloadPDF(Optional ByVal selectedFileName As String, Optional ByVal s
                 Exit For
             End If
         Next vScan
-        
+    
     'There doesn't seem to be anything anywhere, so all we've got is a blank
     Else
         hasPDF = False
@@ -240,7 +279,13 @@ End Sub
 
 Public Sub ReloadPDFFromList()
     Dim aFileParts() As String
-       
+
     ReloadPDF selectedFileName:=ListControl.Column(0), selectedFilePath:=ListControl.Column(1)
 
+End Sub
+
+Public Sub ReloadPDFFromForm()
+    If Not Form Is Nothing Then
+        ReloadPDF selectedFileName:=Nz(Form!FileName.value), selectedFilePath:=Nz(Form!FilePath.value)
+    End If
 End Sub
