@@ -414,6 +414,8 @@ Sub DebugDump(v As Variant)
             Debug.Print vScalar & ":"
             DebugDump v.Item(vScalar)
         Next vScalar
+    ElseIf TypeName(v) = "Nothing" Then
+        Debug.Print TypeName(v)
     Else
         Debug.Print TypeName(v), v
     End If
