@@ -18,6 +18,13 @@ Option Compare Database
 
 Private sMajor As String
 Private sMinor As String
+
+Private tAccnDate As Date
+Private sCreator As String
+Private sCabinetFolder As String
+Private sAddedToDatabaseBy As String
+Private tAddedToDatabaseOn As Date
+
 Private cAttachments As Collection
 Private bAttachmentsSettled As Boolean
 
@@ -112,7 +119,7 @@ Public Property Get Minor() As String
 End Property
 
 '**
-'* Let cAccession::Major: (re)set the minor component of the Accession number
+'* Let cAccession::Minor: (re)set the minor component of the Accession number
 '*
 '* @uses cAccession::canUseForMinor
 '* @uses ResetAttachments
@@ -133,6 +140,43 @@ Public Property Let Minor(s As String)
     'Reset the Attachments list
     ResetAttachments
 End Property
+
+Public Property Get AccnDate() As Date
+    Let AccnDate = tAccnDate
+End Property
+
+Public Property Let AccnDate(t As Date)
+    Let tAccnDate = t
+End Property
+
+Public Property Get Creator() As String
+    Let Creator = sCreator
+End Property
+
+Public Property Let Creator(s As String)
+    Let sCreator = s
+End Property
+
+Public Property Get CabinetFolder() As String
+    Let CabinetFolder = sCabinetFolder
+End Property
+
+Public Property Let CabinetFolder(s As String)
+    Let sCabinetFolder = s
+End Property
+
+Public Sub Sign(Optional ByVal User As String, Optional ByVal Timestamp As Date)
+    If Len(User) = 0 Then
+        Let User = getUserName
+    End If
+    
+    If Timestamp = 0 Then
+        Let Timestamp = Now
+    End If
+    
+    Let sAddedToDatabaseBy = User
+    Let tAddedToDatabaseOn = Timestamp
+End Sub
 
 '**
 '* Get cAccession::Attachments: get a Collection of cAccnScan objects representing all the
@@ -233,6 +277,26 @@ Private Sub RetrieveAttachmentsFromDB()
     Set Rs = Nothing
     On Error Resume Next: CurrentDb.QueryDefs.Delete "qScanFilesByAccn": On Error GoTo 0
     
+End Sub
+
+Public Sub Secure()
+    Dim rsAccessions As DAO.Recordset
+
+    Set rsAccessions = CurrentDb.OpenRecordset("SELECT * FROM Accessions WHERE ACCN = '" & ACCN & "'")
+
+    'Use the metadata for this Accession into the Accessions table
+    If rsAccessions.EOF Then
+        Set rsAccessions = CurrentDb.OpenRecordset("Accessions")
+        rsAccessions.AddNew
+        rsAccessions!ACCN = ACCN
+        rsAccessions!AccnDate = AccnDate
+        rsAccessions!Creator = Creator
+        rsAccessions!CabinetFolder = CabinetFolder
+        rsAccessions!AddedToDatabaseBy = sAddedToDatabaseBy
+        rsAccessions!AddedToDatabaseOn = tAddedToDatabaseOn
+        rsAccessions.Update
+    End If
+
 End Sub
 
 Private Sub Class_Initialize()

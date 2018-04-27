@@ -366,6 +366,7 @@ Public Property Get ACCN() As String
             Let sACCN = ""
         End If
     End If
+    
     Let ACCN = sACCN
 End Property
 
@@ -479,38 +480,12 @@ End Sub
 Public Sub InsertIntoAccessions(Optional ByVal OnCurrent As Boolean, Optional ByVal NewRecord As Boolean, Optional ByRef ListView As Variant)
     Dim sSuggestion As String
     Dim rsAccnScan As DAO.Recordset
-    Dim rsAccessions As DAO.Recordset
-    Dim origPath As String
-    Dim origFileName As String
     
     'FIXME: Do we ever need to be careful to respect a pre-existing setting?
     Let FileNameToBeFixed = False
-    If Not OnCurrent Then
-        SecureCreatorRecord Creator
-        
-        'Save old values before updating
-        origPath = Drive & FilePath
-        origFileName = FileName
-        ForceCorrectFileName
-            
-        If origFileName <> sFileNameCorrected Then
-            Name origPath & "\" & origFileName As origPath & "\" & sFileNameCorrected
-        End If
     
-        Set rsAccessions = CurrentDb.OpenRecordset("SELECT * FROM Accessions WHERE ACCN = '" & ACCN & "'")
-
-        'Use the metadata for this Accession into the Accessions table
-        If rsAccessions.EOF Then
-            Set rsAccessions = CurrentDb.OpenRecordset("Accessions")
-            rsAccessions.AddNew
-            rsAccessions!ACCN = ACCN
-            rsAccessions!AccnDate = AccnDate
-            rsAccessions!Creator = Creator
-            rsAccessions!CabinetFolder = FileFolder
-            rsAccessions!AddedToDatabaseBy = "cwj"
-            rsAccessions!AddedToDatabaseOn = Now
-            rsAccessions.Update
-        End If
+    If Not OnCurrent Then
+        SecureAccessionsRecord
     Else
         Let FileNameToBeFixed = FileNameToBeFixed Or (IsCopierScan And NewRecord)
     End If
@@ -527,7 +502,7 @@ Public Sub InsertIntoAccessions(Optional ByVal OnCurrent As Boolean, Optional By
     Set cScans = oAccession.Attachments
     For Each vScan In cScans
         If (vScan.FileName = FileName) And (vScan.RecordedFilePath = FilePath) Then
-            Err.Raise vbObjectError + 255, "InsertIntoAccessions: I DON'T THINK HE'LL BE VERY INTERESTED IN " & FileName & ". HE'S ALREADY GOT ONE, YOU SEE? IT'SA VERY NICE-UH!"
+            Err.Raise EX_ACCNSCAN_DUPLICATE, "InsertIntoAccessions: I DON'T THINK HE'LL BE VERY INTERESTED IN " & FileName & ". HE'S ALREADY GOT ONE, YOU SEE? IT'SA VERY NICE-UH!"
         End If
     Next vScan
     Set oAccession = Nothing
@@ -717,6 +692,34 @@ Public Sub doCopyTo(NewPath As String)
     
     Let Url = sNewFullPath
     Let OldPath = sOldFullPath
+End Sub
+
+Private Sub SecureAccessionsRecord()
+    Dim oAccession As cAccession
+    Dim origPath As String
+    Dim origFileName As String
+    
+    SecureCreatorRecord Creator
+        
+    'Save old values before updating
+    origPath = Drive & FilePath
+    origFileName = FileName
+    ForceCorrectFileName
+
+    If origFileName <> sFileNameCorrected Then
+        doCopyTo NewPath:=(origPath & "\" & sFileNameCorrected)
+    End If
+    
+    Set oAccession = New cAccession: With oAccession
+        .ACCN = ACCN
+        .AccnDate = AccnDate
+        .Creator = Creator
+        .CabinetFolder = FileFolder
+        .Sign
+    End With
+    
+    oAccession.Secure
+
 End Sub
 
 '**
