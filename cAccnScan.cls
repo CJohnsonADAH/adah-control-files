@@ -17,15 +17,16 @@ Private sFilePath As String
 Private sFileName As String
 Private sOldPath As String
 Private sFileNameCorrected As String
-Private sSheetType As String
-Private bSheetTypeSet As Boolean
-Private iCabinetFolder As Long
-Private oFolder As cCabinetFolder
-Private bCabinetFolderSet As Boolean
+Private sSheetType As String, bSheetTypeSet As Boolean
+Private tTimestamp As Date, bTimestampSet As Boolean
+Private iCabinetFolder As Long, oFolder As cCabinetFolder, bCabinetFolderSet As Boolean
 Private sACCN As String
 Private bFileNameToBeFixed As Boolean
 
 Private dSheetTypeSlugs As Dictionary
+Private dFileSystemMetadata As Dictionary
+Private dDatabaseMetadata As Dictionary
+
 
 '**
 '* Get cAccnScan::FilePath: get the filesystem path of an AccnScan file
@@ -102,6 +103,7 @@ End Property
 Public Property Let NewRecord(b As Boolean)
     Let bNewRecord = b
 End Property
+
 Private Function Folder() As cCabinetFolder
     If oFolder Is Nothing Then
         ResetFolderWithSlugs
@@ -255,6 +257,21 @@ Public Property Let SheetType(s As String)
     Let bSheetTypeSet = True
 End Property
 
+Public Property Get Timestamp() As Date
+    Let Timestamp = tTimestamp
+    
+    If bTimestampSet Then
+        Let Timestamp = tTimestamp
+    Else
+        Let Timestamp = AccnDate
+    End If
+End Property
+
+Public Property Let Timestamp(t As Date)
+    Let tTimestamp = t
+    Let bTimestampSet = True
+End Property
+
 Public Function SheetTypeSlug()
     Let SheetTypeSlug = GetSlugFromSheetType(SheetType)
 End Function
@@ -268,7 +285,7 @@ Public Property Let FileNameToBeFixed(b As Boolean)
 End Property
 
 Public Function Exists() As Boolean
-    Let Exists = Len(Dir(Drive & FilePath & "\" & FileName)) > 0
+    Let Exists = Len(Dir(Url)) > 0
 End Function
 
 Public Function RecordedFilePath() As String
@@ -427,8 +444,10 @@ Public Function AccnDate() As Date
     Dim oRefs As Variant
     
     Set oRefs = MetadataFromFileName
-    If Not oRefs(3) = Empty Then
-        AccnDate = DateSerial(Val(oRefs(3)), Val(oRefs(4)), Val(oRefs(5)))
+    If Not oRefs Is Nothing Then
+        If Not oRefs(3) = Empty Then
+            AccnDate = DateSerial(Val(oRefs(3)), Val(oRefs(4)), Val(oRefs(5)))
+        End If
     End If
 End Function
 
@@ -450,12 +469,14 @@ Public Sub InsertIntoAccnScans(Optional ByRef Controller As Form)
         
         Set oQuery = CurrentDb.CreateQueryDef( _
             Name:="qInsertAccnScans", _
-            SQLText:="INSERT INTO AccnScans (ACCN, VoyagerID, LNUMBER, NonAccnId, CabinetFolder, FileName, FilePath, OldPath, FileNameToBeFixed) VALUES (" _
+            SQLText:="INSERT INTO AccnScans (ACCN, VoyagerID, LNUMBER, NonAccnId, [Timestamp], SheetType, CabinetFolder, FileName, FilePath, OldPath, FileNameToBeFixed) VALUES (" _
             & "[paramAccn], " _
             & "[paramVoyagerID], " _
             & "[paramLNUMBER], " _
             & "[paramNonAccnId], " _
-            & "[paramCabinetFolder]," _
+            & "[paramTimestamp], " _
+            & "[paramSheetType], " _
+            & "[paramCabinetFolder], " _
             & "[paramFileName], " _
             & "[paramFilePath], " _
             & "[paramOldPath], " _
@@ -467,6 +488,8 @@ Public Sub InsertIntoAccnScans(Optional ByRef Controller As Form)
             .Parameters("paramVoyagerID") = Null
             .Parameters("paramLNUMBER") = Null
             .Parameters("paramNonAccnId") = Null
+            .Parameters("paramSheetType") = SheetType
+            .Parameters("paramTimestamp") = IIf(Timestamp <> 0, Timestamp, Null)
             .Parameters("paramCabinetFolder") = CabinetFolder
             .Parameters("paramFileName") = Trim(FileName)
             .Parameters("paramFilePath") = Trim(FilePath)
@@ -482,6 +505,8 @@ Public Sub InsertIntoAccnScans(Optional ByRef Controller As Form)
             .Controls("ACCN").value = IIf(Len(ACCN) > 0, Trim(UCase(ACCN)), Null)
             .Controls("FileName").value = FileName
             .Controls("FilePath").value = FilePath
+            .Controls("SheetType").value = SheetType
+            .Controls("Timestamp").value = Timestamp
             .Controls("CabinetFolder").value = CabinetFolder
             .Controls("OldPath").value = OldPath
             .Controls("FileNameToBeFixed").value = FileNameToBeFixed Or (NewRecord And IsCopierScan)
@@ -633,8 +658,9 @@ TryRename:
         
         Let Result = ""
         
-        Let sOldFull = Drive & FilePath & "\" & FileName
+        Let sOldFull = Url
         Let sNewFull = Drive & FilePath & "\" & sNewFileName
+        
         If Me.Exists Then
             If (sOldFull <> sNewFull) Then
                 Name sOldFull As sNewFull
@@ -698,7 +724,7 @@ Public Sub doCopyTo(NewPath As String)
     Dim sOldFullPath As String
     Dim sNewFullPath As String
     
-    Let sOldFullPath = Drive & FilePath & "\" & FileName
+    Let sOldFullPath = Url
     Let sNewFullPath = NewPath & "\" & FileName
     
     Name sOldFullPath As sNewFullPath
@@ -820,9 +846,15 @@ Private Sub Class_Initialize()
         .Add Key:="Administration", Item:="Admin"
         .Add Key:="Clipping", Item:="Clip"
     End With
+    
+    Set dFileSystemMetadata = New Dictionary
+    Set dDatabaseMetadata = New Dictionary
 End Sub
 
 Private Sub Class_Terminate()
     dSheetTypeSlugs.RemoveAll
     Set dSheetTypeSlugs = Nothing
+    
+    Set dFileSystemMetadata = New Dictionary
+    Set dDatabaseMetadata = New Dictionary
 End Sub
