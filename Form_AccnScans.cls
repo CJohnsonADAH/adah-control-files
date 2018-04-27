@@ -7,7 +7,13 @@ Attribute VB_GlobalNameSpace = False
 Attribute VB_Creatable = True
 Attribute VB_PredeclaredId = True
 Attribute VB_Exposed = False
+'**
+'* @class Form_AccnScans: form for directly handling individual scanned sheets
+'*
+'* @version 2018.0427
+'**
 Option Compare Database
+Option Explicit
 
 Private oView As Object
 
