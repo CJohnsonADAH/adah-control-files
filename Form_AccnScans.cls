@@ -100,8 +100,44 @@ End Sub
 Private Sub Form_Current()
     Let View.ACCN = Nz(Me!ACCN.value)
     View.ReloadPDFFromForm
+    
+    RefreshLabelLinks
 End Sub
 
 Private Sub Form_Open(Cancel As Integer)
     'NOOP
+End Sub
+
+Private Sub lblACCN_Click()
+    If Len(Nz(ACCN.value)) > 0 Then
+        DoCmd.OpenForm FormName:="Accessions", WindowMode:=acWindowNormal, WhereCondition:="ACCN='" & ACCN.value & "'"
+    End If
+End Sub
+
+Private Function HasACCN() As Boolean
+    Let HasACCN = (Len(Nz(ACCN.value)) > 0)
+End Function
+
+Private Sub RefreshLabelLinks()
+    If HasACCN Then
+        Let lblACCN.FontUnderline = True
+        Let lblACCN.FontBold = True
+        Let lblACCN.ForeColor = RGB(0, 0, 255)
+    Else
+        Let lblACCN.FontUnderline = False
+        Let lblACCN.FontBold = False
+        Let lblACCN.ForeColor = RGB(75, 75, 75)
+    End If
+End Sub
+
+Private Sub lblACCN_MouseDown(Button As Integer, Shift As Integer, X As Single, Y As Single)
+    If HasACCN Then
+        Let lblACCN.ForeColor = RGB(255, 0, 0)
+    End If
+End Sub
+
+Private Sub lblACCN_MouseUp(Button As Integer, Shift As Integer, X As Single, Y As Single)
+    If HasACCN Then
+        Let lblACCN.ForeColor = RGB(0, 0, 255)
+    End If
 End Sub
