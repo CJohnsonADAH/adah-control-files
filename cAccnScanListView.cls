@@ -182,17 +182,13 @@ Public Sub AttachToRecord(Location As Variant, Optional NewRecord As Boolean, Op
             Err.Raise EX_NOHOOK, "cAccnScanListView.AttachToRecord", "Not implemented for empty ACCN"
         
         End If
-        
+    
+    Else
+        oAccnScan.InsertIntoAccnScans fAccnScan:=Form
     End If
     
     If Not ListControl Is Nothing Then
         ListControl.Requery
-    End If
-    
-    If Not Form Is Nothing Then
-        Let Form!FileName.value = oAccnScan.FileName
-        Let Form!FilePath.value = oAccnScan.FilePath
-        Let Form!CabinetFolder.value = oAccnScan.CabinetFolder
     End If
     
     Exit Sub
