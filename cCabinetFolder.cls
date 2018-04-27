@@ -152,19 +152,19 @@ Private Function FilterFilePath(c As Variant) As Collection
     Dim vItem As Variant
     Dim sItem As String
     Dim ret As New Collection
-    Dim i As Integer
+    Dim I As Integer
     Dim re As New RegExp
     Dim rParen As Boolean
     Dim oAgency As cAgency
     
     rParen = False
     
-    i = 0
+    I = 0
     For Each vItem In c
-        i = i + 1: Let sItem = vItem
+        I = I + 1: Let sItem = vItem
         
         'Place 1: Probably a CurName
-        If i = 1 Then
+        If I = 1 Then
             With re
                 .Pattern = "^[A-Za-z]{3}$"
                 .IgnoreCase = True
@@ -179,7 +179,7 @@ Private Function FilterFilePath(c As Variant) As Collection
         End If
         
         'Place 2: Possibly a date or date range
-        If i = 2 Then
+        If I = 2 Then
             With re
                 .Pattern = "^[0-9]{4,8}$"
             End With
@@ -193,7 +193,7 @@ Private Function FilterFilePath(c As Variant) As Collection
         End If
         
         'Place 3: Usually the Governor's last name, just before "Control Files" or similar
-        If i >= 3 Then
+        If I >= 3 Then
             If rParen Then
                 rParen = False
                 sItem = sItem & ")"
