@@ -16,9 +16,7 @@ Private sDrive As String
 Private sFilePath As String
 Private sFileName As String
 Private sOldPath As String
-Private sFileNameCorrected As String
 Private sSheetType As String, bSheetTypeSet As Boolean
-Private tTimestamp As Date, bTimestampSet As Boolean
 Private iCabinetFolder As Long, oFolder As cCabinetFolder, bCabinetFolderSet As Boolean
 Private sACCN As String
 Private bFileNameToBeFixed As Boolean
@@ -58,9 +56,42 @@ Public Property Get FileName() As String
     FileName = sFileName
 End Property
 
+Private Sub SetFileSystemMetaData(Key As String, Item As Variant)
+    If Not dFileSystemMetadata.Exists(Key) Then
+        dFileSystemMetadata.Add Key:=Key, Item:=Null
+    End If
+    
+    Let dFileSystemMetadata.Item(Key) = Item
+
+End Sub
+
 Public Property Let FileName(sFN As String)
+    Dim cMeta As Variant
+    Dim oAx As cAccession
+    
     sACCN = ""
     sFileName = sFN
+    
+    Set cMeta = MetadataFromFileName
+    If Not cMeta Is Nothing Then
+        dFileSystemMetadata.RemoveAll
+        
+        If Not cMeta(0) = Empty Then
+            SetFileSystemMetaData "Creator", cMeta(0)
+        End If
+        If Not cMeta(1) = Empty And Not cMeta(2) = Empty Then
+            Set oAx = New cAccession: With oAx
+                .Major = cMeta(1)
+                .Minor = cMeta(2)
+            End With
+            SetFileSystemMetaData "ACCN", oAx.ACCN
+            Set oAx = Nothing
+            
+        End If
+        If Not cMeta(3) = Empty And Not cMeta(3) = "ND" Then
+            SetFileSystemMetaData "Timestamp", DateSerial(Val(cMeta(3)), Val(cMeta(4)), Val(cMeta(5)))
+        End If
+    End If
 End Property
 
 Public Property Let PathStart(sPS As String)
@@ -190,7 +221,7 @@ Public Property Let Url(sUrl As String)
     Dim I As Integer
     
     aPath = Split(sUrl, "\")
-    FileName = aPath(UBound(aPath))
+    Let FileName = aPath(UBound(aPath))
     
     sDrive = ""
     sPath = ""
@@ -215,7 +246,7 @@ Public Property Let Url(sUrl As String)
             sPath = sPath & "\" & aPath(I)
         End If
     Next I
-    FilePath = sPath
+    Let FilePath = sPath
 End Property
 
 Public Property Get Url() As String
@@ -258,18 +289,21 @@ Public Property Let SheetType(s As String)
 End Property
 
 Public Property Get Timestamp() As Date
-    Let Timestamp = tTimestamp
-    
-    If bTimestampSet Then
-        Let Timestamp = tTimestamp
+    If dDatabaseMetadata.Exists("Timestamp") Then
+        Let Timestamp = dDatabaseMetadata.Item("Timestamp")
+    ElseIf dFileSystemMetadata.Exists("Timestamp") Then
+        Let Timestamp = dFileSystemMetadata.Item("Timestamp")
     Else
-        Let Timestamp = AccnDate
+        Let Timestamp = 0
     End If
 End Property
 
 Public Property Let Timestamp(t As Date)
-    Let tTimestamp = t
-    Let bTimestampSet = True
+    If dDatabaseMetadata.Exists("Timestamp") Then
+        dDatabaseMetadata.Add Key:="Timestamp", Item:=t
+    End If
+    
+    Let dDatabaseMetadata.Item("Timestamp") = t
 End Property
 
 Public Function SheetTypeSlug()
@@ -387,13 +421,10 @@ Public Property Get ACCN() As String
     Dim oRefs As Variant
     
     If Len(sACCN) = 0 Then
-        Set oRefs = MetadataFromFileName
-        
-        If Not oRefs Is Nothing Then
-            'Get the ACCN # from the FileName
-            Let sACCN = oRefs(1) & "." & oRefs(2)
-        Else
-            Let sACCN = ""
+        If dDatabaseMetadata.Exists("ACCN") Then
+            Let sACCN = dDatabaseMetadata.Item("ACCN")
+        ElseIf dFileSystemMetadata.Exists("ACCN") Then
+            Let sACCN = dFileSystemMetadata.Item("ACCN")
         End If
     End If
     
@@ -438,17 +469,6 @@ Public Function Creator() As String
         End If
     End If
 
-End Function
-
-Public Function AccnDate() As Date
-    Dim oRefs As Variant
-    
-    Set oRefs = MetadataFromFileName
-    If Not oRefs Is Nothing Then
-        If Not oRefs(3) = Empty Then
-            AccnDate = DateSerial(Val(oRefs(3)), Val(oRefs(4)), Val(oRefs(5)))
-        End If
-    End If
 End Function
 
 '**
@@ -594,27 +614,6 @@ Public Sub InsertIntoAccessions(Optional ByVal OnCurrent As Boolean, Optional By
 
 End Sub
 
-Public Sub ForceCorrectFileName()
-    Dim sAccnYear As String
-    Dim sAccnPoint As String
-    Dim sAccnDate As String
-    Dim oRefs As Variant
-    
-    Set oRefs = MetadataFromFileName
-    
-    sAccnDate = oRefs(3) & oRefs(4) & oRefs(5)
-    
-    If Val(oRefs(1)) < 1900 Then
-        sAccnYear = Format(1900 + Val(oRefs(1)), "0000")
-    Else
-        sAccnYear = Format(Val(oRefs(1)), "0000")
-    End If
-    
-    sAccnPoint = Format(Val(oRefs(2)), "0000")
-    
-    Let sFileNameCorrected = oRefs(0) & "_" & sAccnYear & "_" & sAccnPoint & "_" & sAccnDate & oRefs(6) & ".PDF"
-End Sub
-
 Public Sub ConvertFileName(ByRef Result As String)
     Dim oIsOldAccnFile As New RegExp
     Dim reIsCopierScan As New RegExp
@@ -735,23 +734,14 @@ End Sub
 
 Private Sub SecureAccessionsRecord()
     Dim oAccession As cAccession
-    Dim origPath As String
-    Dim origFileName As String
+    'Dim origPath As String
+    'Dim origFileName As String
     
     SecureCreatorRecord Creator
-        
-    'Save old values before updating
-    origPath = Drive & FilePath
-    origFileName = FileName
-    ForceCorrectFileName
 
-    If origFileName <> sFileNameCorrected Then
-        doCopyTo NewPath:=(origPath & "\" & sFileNameCorrected)
-    End If
-    
     Set oAccession = New cAccession: With oAccession
         .ACCN = ACCN
-        .AccnDate = AccnDate
+        .AccnDate = Timestamp
         .Creator = Creator
         .CabinetFolder = FileFolder
         .Sign
