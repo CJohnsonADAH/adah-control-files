@@ -179,17 +179,17 @@ Public Sub Sign(Optional ByVal User As String, Optional ByVal Timestamp As Date)
 End Sub
 
 '**
-'* Get cAccession::Attachments: get a Collection of cAccnScan objects representing all the
+'* cAccession::Attachments: get a Collection of cAccnScan objects representing all the
 '* scanned sheets or related documentation attached to this Accession (by ACCN number)
 '*
 '* @uses cAccession::SettleAttachments
 '*
 '* @return Collection of cAccnScan objects, one for each attached scanned document
 '**
-Public Property Get Attachments() As Collection
+Public Function Attachments() As Collection
     SettleAttachments
     Set Attachments = cAttachments
-End Property
+End Function
 
 Public Function canUseForMajor(s As String) As Boolean
     Let canUseForMajor = RegexMatch(s, MATCH_WELL_FORMED_MAJOR)
