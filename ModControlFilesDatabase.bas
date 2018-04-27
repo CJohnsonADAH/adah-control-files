@@ -860,3 +860,28 @@ Public Function GetDateSlug(Timestamp As Variant, Optional ByVal OmitTime As Boo
         Let GetDateSlug = sDate
     End If
 End Function
+
+Public Sub GetCabinetFoldersFromAccessions()
+    Dim Rs As DAO.Recordset
+    Dim CabinetFolder As Variant
+    Dim nCabinetFolder As Long
+    
+    Set Rs = CurrentDb.OpenRecordset("AccnScans")
+    Do Until Rs.EOF
+        If IsNull(Rs!CabinetFolder.value) And Len(Nz(Rs!ACCN.value)) > 0 Then
+            CabinetFolder = DLookup("CabinetFolder", "Accessions", "ACCN='" & Nz(Rs!ACCN.value) & "'")
+            If Len(Nz(CabinetFolder)) > 0 Then
+                nCabinetFolder = Nz(DLookup("ID", "CabinetFolders", "Label='" & Replace(CabinetFolder, "'", "''") & "'"))
+                Debug.Print Rs!ID.value, " in folder ", CabinetFolder, nCabinetFolder
+                If IsNull(Rs!CabinetFolder.value) And nCabinetFolder > 0 Then
+                    Rs.Edit
+                    Rs!CabinetFolder.value = nCabinetFolder
+                    Rs.Update
+                End If
+            End If
+        End If
+        Rs.MoveNext
+    Loop
+    Rs.Close
+    Set Rs = Nothing
+End Sub
