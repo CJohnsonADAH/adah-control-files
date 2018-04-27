@@ -65,17 +65,8 @@ End Sub
 
 Private Sub cmdAddScan_Click()
     Dim dlgSourceFile As FileDialog
-    Dim dlgDestinationFolder As FileDialog
     Dim vItem As Variant
-    Dim sItem As String
-    Dim sLocator As Variant
-    Dim sPrevious As String
-    Dim sFilePath As String
-    Dim asFileFolderSlugs(1 To 2) As String
-    Dim sFileName As String
-    Dim bWasNewRecord As Boolean
     Dim bAttachmentError As Boolean
-    Dim oAccnScan As cAccnScan
     Dim sDestinationFolder As String
     
     Me!ACCN.BackColor = RGB(255, 255, 255)
@@ -88,62 +79,78 @@ Private Sub cmdAddScan_Click()
     
     If dlgSourceFile.Show Then
         For Each vItem In dlgSourceFile.SelectedItems
-            Let sItem = Nz(vItem)
-            Set oAccnScan = New cAccnScan: With oAccnScan
-                .Url = sItem
-            End With
-
-            Let asFileFolderSlugs(1) = oAccnScan.FileFolderSlug
-
-            If Not oAccnScan.isOnDefaultDrive Then
-                If Len(sDestinationFolder) = 0 Then
-                    Let sDestinationFolder = oAccnScan.FolderHomePath
-                End If
-                
-                If Len(sDestinationFolder) = 0 Then
-                    Set dlgDestinationFolder = Application.FileDialog(msoFileDialogFolderPicker): With dlgDestinationFolder
-                        .Title = "Destination Folder"
-                    End With
-                
-                    If dlgDestinationFolder.Show Then
-                        Let sDestinationFolder = dlgDestinationFolder.SelectedItems(1)
-                    End If
-                End If
-                                
-                If Len(sDestinationFolder) > 0 Then
-                    oAccnScan.doCopyTo NewPath:=sDestinationFolder
-                    Let sItem = oAccnScan.Url
-                    Let asFileFolderSlugs(2) = oAccnScan.FileFolderSlug
-                End If
-            End If
+            DoAttachScanFile File:=Nz(vItem), Halt:=bAttachmentError, DestinationFolder:=sDestinationFolder
             
-            If Not IsNull(Me!ACCN.value) Then
-                Let AccnScanListView.ACCN = Me!ACCN.value
-            Else
-                Let AccnScanListView.ACCN = ""
+            If Halt Then
+                Exit For
             End If
-            
-            Let bWasNewRecord = Me.NewRecord 'Status may be changed by error handler
-    
-AttachToRecordTry:
-            Let bAttachmentError = False: On Error GoTo AttachToRecordCatch
-            AccnScanListView.AttachToRecord Location:=oAccnScan, NewRecord:=bWasNewRecord
-            
-            If bWasNewRecord Then
-                If Not bAttachmentError And Not IsNull(Me!AccnDate.value) Then
-                    DoCmd.GoToRecord Record:=acNewRec
-                Else
-                    Me!AccnDate.SetFocus
-                    Exit For
-                End If
-            End If
-    
-            'Continue on with the next item in the loop.
         Next vItem
                 
         AccnScanListView.ReloadPDF
     End If
-    Exit Sub
+    
+End Sub
+
+Private Sub DoAttachScanFile(ByVal File As String, ByRef Halt As Boolean, ByRef DestinationFolder As String)
+    Dim dlgDestinationFolder As FileDialog
+    Dim asFileFolderSlugs(1 To 2) As String
+    Dim bWasNewRecord As Boolean
+    
+    Dim oAccnScan As New cAccnScan: With oAccnScan
+        .Url = File
+    End With
+
+    Let asFileFolderSlugs(1) = oAccnScan.FileFolderSlug
+
+    If Not oAccnScan.isOnDefaultDrive Then
+        If Len(DestinationFolder) = 0 Then
+            Let DestinationFolder = oAccnScan.FolderHomePath
+        End If
+                
+        If Len(DestinationFolder) = 0 Then
+            Set dlgDestinationFolder = Application.FileDialog(msoFileDialogFolderPicker): With dlgDestinationFolder
+                .Title = "Destination Folder"
+            End With
+                
+            If dlgDestinationFolder.Show Then
+                Let DestinationFolder = dlgDestinationFolder.SelectedItems(1)
+            End If
+        End If
+                                
+        If Len(DestinationFolder) > 0 Then
+            oAccnScan.doCopyTo NewPath:=DestinationFolder
+            Let File = oAccnScan.Url
+            Let asFileFolderSlugs(2) = oAccnScan.FileFolderSlug
+        End If
+    End If
+    
+    'If we have ACCN on the form, use it
+    If Not IsNull(Me!ACCN.value) Then
+        Let AccnScanListView.ACCN = Me!ACCN.value
+    
+    'If we don't have ACCN on the form, try to get it from the file meta-data
+    Else
+        Let AccnScanListView.ACCN = oAccnScan.ACCN
+
+    End If
+            
+    Let bWasNewRecord = Me.NewRecord 'Status may be changed by error handler
+    
+AttachToRecordTry:
+    On Error GoTo AttachToRecordCatch
+    AccnScanListView.AttachToRecord Location:=oAccnScan, NewRecord:=bWasNewRecord
+    On Error GoTo 0
+    
+    Let Halt = False
+    If bWasNewRecord Then
+        If Not Halt And Not IsNull(Me!AccnDate.value) Then
+            DoCmd.GoToRecord Record:=acNewRec
+        Else
+            Me!AccnDate.SetFocus
+            Let Halt = True
+        End If
+    End If
+    GoTo AttachToRecordFinally
     
 AttachToRecordCatch:
     Dim Fixed As Boolean
@@ -152,8 +159,8 @@ AttachToRecordCatch:
     If Err.Number = EX_NOHOOK Then
         
         If Me.NewRecord Then
-            AccnScanListView.View FileName:=sItem
-            DoFillOutAndSave FileName:=sItem, Slugs:=asFileFolderSlugs, OK:=Fixed
+            AccnScanListView.View FileName:=File
+            DoFillOutAndSave FileName:=File, Slugs:=asFileFolderSlugs, OK:=Fixed
         End If
     End If
     
@@ -161,8 +168,14 @@ AttachToRecordCatch:
         Resume
     Else
         Me!ACCN.BackColor = RGB(255, 192, 192)
-        Let bAttachmentError = True
+        Let Halt = True
+        Resume AttachToRecordFinally
     End If
+
+AttachToRecordFinally:
+
+    Exit Sub
+
 End Sub
 
 Private Sub DoFillOutAndSave(ByVal FileName As String, ByRef Slugs() As String, ByRef OK As Boolean)
@@ -446,11 +459,9 @@ Private Function BulkAddDialog(Optional ByVal Path As String) As Integer
     Dim iResult As Integer
     Dim sItem As Variant
     Dim asPath() As String
-    Dim sLocator As Variant
-    Dim sPrevious As String
-    Dim sFilePath As String
-    Dim sFileName As String
     Dim oAccnScan As cAccnScan
+    Dim bHalt As Boolean
+    Dim sDestFolder As String
     
     Me!ACCN.BackColor = RGB(255, 255, 255)
     
@@ -473,12 +484,19 @@ Private Function BulkAddDialog(Optional ByVal Path As String) As Integer
     For Each sItem In f.SelectedItems
         boxProgress.Visible = True
         'Should contain a full path, e.g. "S:\CollectionsManagement\AgencyFiles\Local\03_MontgomeryCounty\ControlFiles\03_1994_0451_19940912.PDF"
-        Set oAccnScan = New cAccnScan
-        oAccnScan.Url = sItem
+        'Set oAccnScan = New cAccnScan
+        'oAccnScan.Url = sItem
         
-        On Error GoTo HandleInsertError
-        oAccnScan.InsertIntoAccessions
-        On Error GoTo 0
+        'On Error GoTo HandleInsertError
+        'oAccnScan.InsertIntoAccessions
+        'On Error GoTo 0
+        
+        DoCmd.GoToRecord Record:=acNewRec
+        DoAttachScanFile File:=Nz(sItem), Halt:=bHalt, DestinationFolder:=sDestFolder
+        
+        If bHalt Then
+            Exit For
+        End If
         
         boxProgress.Width = boxProgress.Width + 10
         
@@ -486,13 +504,8 @@ Private Function BulkAddDialog(Optional ByVal Path As String) As Integer
     boxProgress.Visible = False
     Me.Requery
     
-    DoCmd.GoToControl "ACCN"
-    DoCmd.FindRecord FindWhat:=oAccnScan.ACCN, Match:=acEntire, MatchCase:=False, OnlyCurrentField:=acCurrent
-    Exit Function
-    
-HandleInsertError:
-    'NOOP
-    Resume Next
+    'DoCmd.GoToControl "ACCN"
+    'DoCmd.FindRecord FindWhat:=oAccnScan.ACCN, Match:=acEntire, MatchCase:=False, OnlyCurrentField:=acCurrent
 
 End Function
 
