@@ -708,14 +708,12 @@ Public Function RenamePDFs(Optional ByVal LogLevel As Integer)
         Let sFileName = Dir(sPattern, vbNormal)
         Do While Len(sFileName) > 0
             Set oAccnScan = New cAccnScan: With oAccnScan
-                Let .Url = sDrive & vSearchDir & "\" & sFileName
+                .Url = sDrive & vSearchDir & "\" & sFileName
             End With
             
             If oAccnScan.IsAccnSheet(Version:=2) Then
                 ' NOOP
             ElseIf oAccnScan.IsAccnSheet(Version:=1) Then
-                ' NOOP
-            ElseIf oAccnScan.IsDocumentationSheet(Version:=2) Then
                 ' NOOP
             ElseIf oAccnScan.IsDocumentationSheet(Version:=1) Then
                 Set cBits = New Collection
@@ -739,49 +737,61 @@ Public Function RenamePDFs(Optional ByVal LogLevel As Integer)
                 Rs.Close
                 
                 Set cBits = Nothing
-            ElseIf RegexMatch(sFileName, oAccnScan.MATCH_COPIER_SCAN) Then
+            ElseIf oAccnScan.IsCopierScan Or oAccnScan.IsDocumentationSheet(Version:=2) Then
                 
                 ' Is it referenced in AccnScans?
                 Set Rs = CurrentDb.OpenRecordset("SELECT * FROM AccnScans LEFT JOIN Accessions ON (AccnScans.ACCN=Accessions.ACCN) WHERE FileName='" & Replace(sFileName, "'", "''") & "'")
+                
+                'No. We don't have any meta-data to intelligently rename it, so skip it for now.
                 If Rs.EOF Then
                     If LogLevel = 0 Or LogLevel > 1 Then
-                        Debug.Print "COPIER SCAN UNPROCESSED [NO DB]: ", sFileName
+                        Debug.Print "COPIER SCAN/DOC SHEET UNPROCESSED [NO DB]: ", sFileName
                     End If
+                    
+                'Yes. Get the meta-data from the database
                 Else
                     Let sFullPath = sDrive & vSearchDir & "\" & sFileName
                     If Rs!FileNameToBeFixed.value Then
+                        Let oAccnScan.SheetType = Rs!SheetType.value
+                        Let oAccnScan.Timestamp = Rs!Timestamp.value
+                        
                         Let sCreator = Nz(Rs!Creator.value)
                         If Len(sCreator) = 0 Then
                             Let sCreator = oAccnScan.Creator
                         End If
                         Let sCurName = GetCurNameFromCreatorCode(sCreator)
                         
-                        If Len(Nz(Rs!SheetType.value)) > 0 And UCase(Nz(Rs!SheetType.value)) <> "ACCN" Then
-                            
-                            Let oAccnScan.SheetType = Nz(Rs!SheetType.value)
-                            Let sNewFileName = sCurName & oAccnScan.SheetTypeSlug & GetDateSlug(Rs!Timestamp.value) & ".PDF"
-
-                        ElseIf Len(Nz(Rs.Fields("AccnScans.ACCN").value)) > 0 Then
-                            
-                            Let sNewFileName = sCurName & Replace(Nz(Rs.Fields("AccnScans.ACCN").value), ".", "") & ".PDF"
-                            
-                        Else
-                            Let sNewFileName = sFileName
+                        'If Len(Nz(Rs!SheetType.value)) > 0 And UCase(Nz(Rs!SheetType.value)) <> "ACCN" Then
+                        '
+                        '    Let oAccnScan.SheetType = Nz(Rs!SheetType.value)
+                        '    Let sNewFileName = sCurName & oAccnScan.SheetTypeSlug & GetDateSlug(Rs!Timestamp.value) & ".PDF"
+                        '
+                        'ElseIf Len(Nz(Rs.Fields("AccnScans.ACCN").value)) > 0 Then
+                        '
+                        '    Let sNewFileName = sCurName & Replace(Nz(Rs.Fields("AccnScans.ACCN").value), ".", "") & ".PDF"
+                        '
+                        'Else
+                        '    Let sNewFileName = sFileName
+                        'End If
+                        
+                        'Let sNewFullPath = sDrive & vSearchDir & "\" & sNewFileName
+                        
+                        oAccnScan.ConvertFileName Result:=sNewFileName
+                        If Len(sNewFileName) > 0 Then
+                            If LogLevel = 0 Or LogLevel > 0 Then
+                                Debug.Print "COPIER SCAN [DB]: ", sFullPath, "=>", sNewFileName
+                            End If
                         End If
                         
-                        Let sNewFullPath = sDrive & vSearchDir & "\" & sNewFileName
+                        'On Error GoTo CatchNameAsFailure
+                        'Name sFullPath As sNewFullPath
+                        'On Error GoTo 0
+                        'Rs.Edit
+                        'Let Rs!FileName = sNewFileName
+                        'Let Rs!FileNameToBeFixed = False
+                        'Rs.Update
                         
-                        If LogLevel = 0 Or LogLevel > 0 Then
-                            Debug.Print "COPIER SCAN [DB]: ", sFullPath, "=>", sNewFileName
-                        End If
                         
-                        On Error GoTo CatchNameAsFailure
-                        Name sFullPath As sNewFullPath
-                        On Error GoTo 0
-                        Rs.Edit
-                        Let Rs!FileName = sNewFileName
-                        Let Rs!FileNameToBeFixed = False
-                        Rs.Update
                     Else
                         If LogLevel = 0 Or LogLevel > 1 Then
                             Debug.Print "COPIER SCAN UNPROCESSED [DB]: ", sFileName
@@ -857,7 +867,7 @@ Public Function GetDateSlug(Timestamp As Variant, Optional ByVal OmitTime As Boo
     Else
         Let sDate = Format(Timestamp, "YYYYmmdd")
         If OmitTime Or Format(Timestamp, "HMS") <> "000" Then
-            Let sDate = sDate & "_" & Format(Timestamp, "HM")
+            Let sDate = sDate & "_" & Format(Timestamp, "HHMM")
         End If
         Let GetDateSlug = sDate
     End If

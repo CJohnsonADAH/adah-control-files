@@ -553,6 +553,7 @@ Public Sub InsertIntoAccessions(Optional ByVal OnCurrent As Boolean, Optional By
     
     Dim sOldFileName As String
     Dim sNewFileName As String
+    
     If bFileNameToBeFixed Then
         Let sOldFileName = FileName
         
@@ -563,35 +564,6 @@ Public Sub InsertIntoAccessions(Optional ByVal OnCurrent As Boolean, Optional By
         End If
         
         ConvertFileName Result:=sNewFileName
-        
-        If Len(sNewFileName) > 0 And sNewFileName <> sOldFileName Then
-                
-            On Error Resume Next: CurrentDb.QueryDefs.Delete "qUpdateAccnScans": On Error GoTo 0
-            
-            Set oQuery = CurrentDb.CreateQueryDef( _
-                Name:="qUpdateAccnScans", _
-                SQLText:="SELECT * FROM AccnScans " _
-                & "WHERE FileName=[paramFileName] " _
-                & "AND FilePath=[paramFilePath]" _
-            )
-            oQuery.Parameters("paramFileName") = Trim(sOldFileName)
-            oQuery.Parameters("paramFilePath") = Trim(FilePath)
-
-            Set rsAccnScan = oQuery.OpenRecordset
-            Do Until rsAccnScan.EOF
-                rsAccnScan.Edit
-                rsAccnScan!FileName = sNewFileName
-                rsAccnScan!FileNameToBeFixed = False
-                rsAccnScan.Update
-                
-                rsAccnScan.MoveNext
-            Loop
-            rsAccnScan.Close
-            Set rsAccnScan = Nothing
-            
-            On Error Resume Next: CurrentDb.QueryDefs.Delete "qUpdateAccnScans": On Error GoTo 0
-
-        End If
     End If
     
     Set oQuery = Nothing
@@ -601,16 +573,20 @@ End Sub
 Public Sub ConvertFileName(ByRef Result As String)
     Dim oIsOldAccnFile As New RegExp
     Dim reIsCopierScan As New RegExp
+    Dim reIsBadDateScan As New RegExp
     
     Dim MetaD As Variant
-    Dim sOldNew As String
+    
     Dim sNewFileName As String
+    Dim sNewFileBaseName As String
+    Dim sNewFileExtension As String
+    
+    Dim sOldFileName As String, sOldFilePath As String
+    
     Dim oRef As Variant
     Dim cRefs As Variant
-    Dim I As Integer
     
-    Dim sOldFull As String
-    Dim sNewFull As String
+    Dim sCurName As String
     
     With oIsOldAccnFile
         .IgnoreCase = True
@@ -622,6 +598,11 @@ Public Sub ConvertFileName(ByRef Result As String)
         .Pattern = MATCH_COPIER_SCAN
     End With
     
+    With reIsBadDateScan
+        .IgnoreCase = True
+        .Pattern = MATCH_DOCUMENTATION_V2
+    End With
+    
     Set cRefs = oIsOldAccnFile.Execute(FileName)
     If cRefs.Count > 0 Then
         For Each oRef In cRefs
@@ -629,47 +610,125 @@ Public Sub ConvertFileName(ByRef Result As String)
             Exit For
         Next oRef
         
-        Let sNewFileName = MetaD.Item(0) & MetaD.Item(1) & MetaD.Item(2) & MetaD.Item(6) & ".PDF" & MetaD.Item(7)
+        Let sNewFileBaseName = MetaD.Item(0) & MetaD.Item(1) & MetaD.Item(2) & MetaD.Item(6)
+        Let sNewFileExtension = ".PDF" & MetaD.Item(7)
+        Let sNewFileName = sNewFileBaseName & sNewFileExtension
+    
     ElseIf reIsCopierScan.Test(FileName) Then
-        Let sNewFileName = Creator & Replace(ACCN, ".", "") & ".PDF"
+        Let sCurName = GetCurNameFromCreatorCode(Creator)
+        Let sNewFileExtension = ".PDF"
+        
+        Select Case SheetType
+        Case "", "ACCN":
+            Let sNewFileBaseName = sCurName & Replace(ACCN, ".", "")
+        Case Else:
+            Let sNewFileBaseName = sCurName & SheetTypeSlug & GetDateSlug(Timestamp)
+        End Select
+        Let sNewFileName = sNewFileBaseName & sNewFileExtension
+        
+    ElseIf reIsBadDateScan.Test(FileName) Then
+    
+        Set cRefs = reIsBadDateScan.Execute(FileName)
+        If cRefs.Count > 0 Then
+            For Each oRef In cRefs
+                Set MetaD = oRef.SubMatches
+            Next oRef
+            
+            If Not MetaD Is Nothing Then
+                If MetaD(2) = "18991230" Then
+                    Let sNewFileBaseName = MetaD(0) & MetaD(1) & GetDateSlug(Timestamp)
+                    Let sNewFileExtension = MetaD(3)
+                    Let sNewFileName = sNewFileBaseName & sNewFileExtension
+                End If
+            End If
+        End If
+        
     End If
     
-    If Len(sNewFileName) > 0 Then
+    Let sOldFileName = FileName
+    Let sOldFilePath = FilePath
+    
+    FileSystemConvertFileName NewFileName:=sNewFileName, BaseName:=sNewFileBaseName, Extension:=sNewFileExtension, Result:=Result
+    If Len(Result) > 0 Then
+        DatabaseConvertFileNames OldFileName:=sOldFileName, OldFilePath:=sOldFilePath
+    End If
+End Sub
+
+Public Sub FileSystemConvertFileName(ByVal NewFileName As String, ByVal BaseName As String, ByVal Extension As String, ByRef Result As String)
+    Dim sOldFull As String, sNewFull As String
+    Dim I As Integer, sOldNew As String
+
+    Let Result = ""
 
 TryRename:
-        On Error GoTo CatchRename
+    On Error GoTo CatchRename
         
-        Let Result = ""
+    If Len(NewFileName) > 0 Then
         
         Let sOldFull = Url
-        Let sNewFull = Drive & FilePath & "\" & sNewFileName
+        Let sNewFull = Drive & FilePath & "\" & NewFileName
         
         If Me.Exists Then
             If (sOldFull <> sNewFull) Then
                 Name sOldFull As sNewFull
-                Let Result = sNewFileName
-                Let FileName = sNewFileName
+                
+                Let Result = NewFileName
+                Let FileName = NewFileName
             End If
         Else
             Debug.Print "DID/COULD NOT RENAME: ", Url, "DOES NOT EXIST..."
         End If
+    End If
 
 FinallyRename:
-        On Error GoTo 0
-    
-    Else
-        Set MetaD = Nothing
-    End If
+    On Error GoTo 0
     Exit Sub
     
 CatchRename:
-    Debug.Print "DID/COULD NOT RENAME: ", Url, "TRY AGAIN..."
-    Let sOldNew = sNewFileName
-    Let I = I + 1
-    Let sNewFileName = MetaD.Item(0) & MetaD.Item(1) & MetaD.Item(2) & MetaD.Item(6) & "-" & Format(I, "00") & ".PDF" & MetaD.Item(7)
+    Let sOldNew = NewFileName
+    If Err.Number = EX_FILEALREADYEXISTS Then
+        Debug.Print "DID/COULD NOT RENAME: ", Url, "TRY AGAIN..."
+        Let I = I + 1
+        Let NewFileName = BaseName & "-" & Format(I, "00") & Extension
+    ElseIf Err.Number = EX_FILEPERMISSIONDENIED Then
+        'NOOP
+    End If
     
-    If sOldNew <> sNewFileName Then Resume TryRename
+    If sOldNew <> NewFileName Then Resume TryRename
     Resume FinallyRename
+
+
+End Sub
+
+Public Sub DatabaseConvertFileNames(OldFileName As String, OldFilePath As String)
+    Dim oQuery As DAO.QueryDef
+    Dim rsAccnScan As DAO.Recordset
+    
+    On Error Resume Next: CurrentDb.QueryDefs.Delete "qUpdateAccnScans": On Error GoTo 0
+            
+    Set oQuery = CurrentDb.CreateQueryDef( _
+        Name:="qUpdateAccnScans", _
+        SQLText:="SELECT * FROM AccnScans " _
+        & "WHERE FileName=[paramFileName] " _
+        & "AND FilePath=[paramFilePath]" _
+    )
+    oQuery.Parameters("paramFileName") = Trim(OldFileName)
+    oQuery.Parameters("paramFilePath") = Trim(OldFilePath)
+
+    Set rsAccnScan = oQuery.OpenRecordset
+    Do Until rsAccnScan.EOF
+        rsAccnScan.Edit
+        rsAccnScan!FileName = FileName
+        rsAccnScan!FilePath = FilePath
+        rsAccnScan!FileNameToBeFixed = False
+        rsAccnScan.Update
+        
+        rsAccnScan.MoveNext
+    Loop
+    rsAccnScan.Close
+    Set rsAccnScan = Nothing
+    
+    On Error Resume Next: CurrentDb.QueryDefs.Delete "qUpdateAccnScans": On Error GoTo 0
 
 End Sub
 
