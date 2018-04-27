@@ -81,7 +81,7 @@ Private Sub cmdAddScan_Click()
         For Each vItem In dlgSourceFile.SelectedItems
             DoAttachScanFile File:=Nz(vItem), Halt:=bAttachmentError, DestinationFolder:=sDestinationFolder
             
-            If Halt Then
+            If bAttachmentError Then
                 Exit For
             End If
         Next vItem
@@ -160,7 +160,7 @@ AttachToRecordCatch:
         
         If Me.NewRecord Then
             AccnScanListView.View FileName:=File
-            DoFillOutAndSave FileName:=File, Slugs:=asFileFolderSlugs, OK:=Fixed
+            DoFillOutAndSave Scan:=oAccnScan, OK:=Fixed
         End If
     End If
     
@@ -178,17 +178,16 @@ AttachToRecordFinally:
 
 End Sub
 
-Private Sub DoFillOutAndSave(ByVal FileName As String, ByRef Slugs() As String, ByRef OK As Boolean)
+Private Sub DoFillOutAndSave(Scan As cAccnScan, ByRef OK As Boolean)
     Dim I As Integer
-    
+        
     Dim sDetails As String
     Dim rDetails As AccessionDetails
-    Dim oFolder As cCabinetFolder
     
-    FillOutFormFromAttachment FileName
+    FillOutFormFromAttachment Scan.Url
     If Len(Nz(Me!ACCN.value)) = 0 Then
         Let sDetails = InputBox("Accession Number")
-        Let rDetails = GetDetails(File:=FileName, s:=sDetails)
+        Let rDetails = GetDetails(File:=Scan.Url, s:=sDetails)
     Else
         Let rDetails.ACCN = Nz(Me!ACCN.value)
         Let rDetails.Creator = Nz(Me!Creator.value)
@@ -213,38 +212,15 @@ Private Sub DoFillOutAndSave(ByVal FileName As String, ByRef Slugs() As String, 
         Let Me!AddedToDatabaseBy.value = getUserName
         Let Me!AddedToDatabaseOn.value = Now
         
-        Set oFolder = New cCabinetFolder: With oFolder
-            .FileSourcePath = ""
-        End With
-        
-        For I = LBound(Slugs) To UBound(Slugs)
-            If Len(Slugs(I)) > 0 Then
-                Set oFolder = New cCabinetFolder: With oFolder
-                .FileSourcePath = Slugs(I)
-                End With
-                
-                If oFolder.ID <> 0 Then
-                    Let Me!CabinetFolder.value = oFolder.Label
-                    Exit For
-                Else
-                    Set oFolder = New cCabinetFolder: With oFolder
-                    .FilePath = Slugs(I)
-                    End With
-                    
-                    If oFolder.ID <> 0 Then
-                        Let Me!CabinetFolder.value = oFolder.Label
-                        Exit For
-                    End If
-                End If
-            End If
-        Next I
-        
+        Let Me!CabinetFolder.value = Scan.FileFolder
         If Len(Nz(Me!CabinetFolder.value)) = 0 Then
             Let Me!CabinetFolder.value = sLastCabinetFolderLabel
         End If
         
         On Error GoTo cmdSaveRecordCatch
         DoCmd.RunCommand acCmdSaveRecord
+        On Error GoTo 0
+        
     Else
         'Proven guilty: no ACCN
         Let OK = False

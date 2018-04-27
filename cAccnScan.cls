@@ -111,9 +111,14 @@ End Function
 
 Private Sub ResetFolderWithSlugs()
     Set oFolder = New cCabinetFolder: With oFolder
-        .FilePath = FileFolderSlug(Old:=False)
         .FileSourcePath = FileFolderSlug(Old:=True)
     End With
+    
+    If oFolder.ID = 0 Then
+        Set oFolder = New cCabinetFolder: With oFolder
+            .FilePath = FileFolderSlug(Old:=False)
+        End With
+    End If
 End Sub
 
 Private Function retrieveCabinetFolderID() As Integer
