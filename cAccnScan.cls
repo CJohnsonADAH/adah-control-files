@@ -85,7 +85,7 @@ Public Property Get CabinetFolder() As Long
     If bCabinetFolderSet Then
         Let CabinetFolder = iCabinetFolder
     ElseIf Len(FilePath) > 0 Then
-        Let CabinetFolder = getCabinetFolderID
+        Let CabinetFolder = retrieveCabinetFolderID
     End If
 End Property
 
@@ -96,20 +96,26 @@ End Property
 
 Private Function Folder() As cCabinetFolder
     If oFolder Is Nothing Then
-        ResetFolderWithSlug
+        ResetFolderWithSlugs
     End If
     Set Folder = oFolder
 End Function
 
-Private Sub ResetFolderWithSlug()
+Private Sub ResetFolderWithSlugs()
     Set oFolder = New cCabinetFolder: With oFolder
-        .FilePath = FileFolderSlug
+        .FilePath = FileFolderSlug(Old:=False)
+        .FileSourcePath = FileFolderSlug(Old:=True)
     End With
 End Sub
 
-Private Function getCabinetFolderID() As Integer
-    ResetFolderWithSlug
-    Let getCabinetFolderID = oFolder.ID
+Private Function retrieveCabinetFolderID() As Integer
+    ResetFolderWithSlugs
+    If oFolder.ID <> 0 Then
+        Let retrieveCabinetFolderID = oFolder.ID
+    Else
+        Let retrieveCabinetFolderID = 0
+    End If
+
 End Function
 
 Public Function FileFolder() As String
@@ -121,24 +127,43 @@ Public Function FileFolder() As String
     If ID <> 0 Then Let FileFolder = Folder.Label
 End Function
 
-Public Function FileFolderSlug(Optional ByVal Old As Boolean) As String
-    Dim myPath As String
+Public Function FileFolderSlug(Optional ByVal Old As Variant) As String
+    Dim myPath(1 To 2) As String
+    
     Dim I As Integer
+    Dim J As Integer
+    
     Dim sSlug As String
     Dim asFolders() As String
     
-    Let myPath = FilePath
-    Let asFolders = Split(myPath, "\")
+    Dim UsePath(1 To 2) As Boolean
     
-    If UBound(asFolders) >= LBound(asFolders) Then
-        Let I = UBound(asFolders)
-        Do Until (Len(sSlug) > 0) Or (I < LBound(asFolders))
-            If Not RegexMatch(asFolders(I), "Cont[r]?ol\s*File[s]?") Then
-                Let sSlug = asFolders(I)
-            End If
-            Let I = I - 1
-        Loop
+    If IsMissing(Old) Then
+        Let UsePath(1) = True
+        Let UsePath(2) = True
+    Else
+        Let UsePath(1) = CBool(Old)
+        Let UsePath(2) = Not CBool(Old)
     End If
+    
+    Let myPath(1) = OldPath
+    Let myPath(2) = FilePath
+    
+    Let I = LBound(myPath)
+    Do Until Len(sSlug) > 0 Or I > UBound(myPath)
+        If UsePath(I) Then
+            Let asFolders = Split(myPath(I), "\")
+            
+            Let J = UBound(asFolders)
+            Do Until (Len(sSlug) > 0) Or (J < LBound(asFolders))
+                If Not RegexMatch(asFolders(J), "(^Cont[r]?ol\s*File[s]?$|[.][A-Za-z0-9]+$)") Then
+                    Let sSlug = asFolders(J)
+                End If
+                Let J = J - 1
+            Loop
+        End If
+        Let I = I + 1
+    Loop
     
     Let FileFolderSlug = sSlug
 End Function
@@ -268,6 +293,10 @@ Public Function IsDocumentationSheet(Optional ByVal Version As Integer) As Boole
     Let IsDocumentationSheet = RegexMatch(FileName, Pattern)
 End Function
 
+Public Function IsCopierScan() As Boolean
+    Let IsCopierScan = RegexMatch(FileName, MATCH_COPIER_SCAN)
+End Function
+
 Public Function MATCH_FILENAME_V1() As String
     Let MATCH_FILENAME_V1 = "^([A-Z0-9]+)_([0-9]+)_([0-9]+)_([0-9]{4})?([0-9]{2})?([0-9]{2})?(.*)[.]PDF(|.*)$"
 End Function
@@ -329,9 +358,13 @@ Public Property Get ACCN() As String
     
     If Len(sACCN) = 0 Then
         Set oRefs = MetadataFromFileName
-    
-        'Get the ACCN # from the FileName
-        Let sACCN = oRefs(1) & "." & oRefs(2)
+        
+        If Not oRefs Is Nothing Then
+            'Get the ACCN # from the FileName
+            Let sACCN = oRefs(1) & "." & oRefs(2)
+        Else
+            Let sACCN = ""
+        End If
     End If
     Let ACCN = sACCN
 End Property
@@ -395,37 +428,52 @@ End Function
 '* @uses cAccnScan::OldPath
 '* @uses cAccnScan::FileNameToBeFixed
 '**
-Public Sub InsertIntoAccnScans()
-    On Error Resume Next: CurrentDb.QueryDefs.Delete "qInsertAccnScans": On Error GoTo 0
+Public Sub InsertIntoAccnScans(Optional ByRef fAccnScan As Form)
+    Dim oQuery As DAO.QueryDef
+    
+    If fAccnScan Is Nothing Then
+        On Error Resume Next: CurrentDb.QueryDefs.Delete "qInsertAccnScans": On Error GoTo 0
         
-    Set oQuery = CurrentDb.CreateQueryDef( _
-        Name:="qInsertAccnScans", _
-        SQLText:="INSERT INTO AccnScans (ACCN, VoyagerID, LNUMBER, NonAccnId, CabinetFolder, FileName, FilePath, OldPath, FileNameToBeFixed) VALUES (" _
-        & "[paramAccn], " _
-        & "[paramVoyagerID], " _
-        & "[paramLNUMBER], " _
-        & "[paramNonAccnId], " _
-        & "[paramCabinetFolder]," _
-        & "[paramFileName], " _
-        & "[paramFilePath], " _
-        & "[paramOldPath], " _
-        & "[paramFileNameToBeFixed])" _
-    )
+        Set oQuery = CurrentDb.CreateQueryDef( _
+            Name:="qInsertAccnScans", _
+            SQLText:="INSERT INTO AccnScans (ACCN, VoyagerID, LNUMBER, NonAccnId, CabinetFolder, FileName, FilePath, OldPath, FileNameToBeFixed) VALUES (" _
+            & "[paramAccn], " _
+            & "[paramVoyagerID], " _
+            & "[paramLNUMBER], " _
+            & "[paramNonAccnId], " _
+            & "[paramCabinetFolder]," _
+            & "[paramFileName], " _
+            & "[paramFilePath], " _
+            & "[paramOldPath], " _
+            & "[paramFileNameToBeFixed])" _
+        )
+        
+        With oQuery
+            .Parameters("paramAccn") = IIf(Len(ACCN) > 0, Trim(UCase(ACCN)), Null)
+            .Parameters("paramVoyagerID") = Null
+            .Parameters("paramLNUMBER") = Null
+            .Parameters("paramNonAccnId") = Null
+            .Parameters("paramCabinetFolder") = CabinetFolder
+            .Parameters("paramFileName") = Trim(FileName)
+            .Parameters("paramFilePath") = Trim(FilePath)
+            .Parameters("paramOldPath") = IIf(Len(OldPath) > 0, OldPath, Null)
+            .Parameters("paramFileNameToBeFixed") = FileNameToBeFixed
+            .Execute
+        End With
+        
+        On Error Resume Next: CurrentDb.QueryDefs.Delete "qInsertAccnScans": On Error GoTo 0
+    Else
     
-    With oQuery
-        .Parameters("paramAccn") = Trim(UCase(ACCN))
-        .Parameters("paramVoyagerID") = Null
-        .Parameters("paramLNUMBER") = Null
-        .Parameters("paramNonAccnId") = Null
-        .Parameters("paramCabinetFolder") = CabinetFolder
-        .Parameters("paramFileName") = Trim(FileName)
-        .Parameters("paramFilePath") = Trim(FilePath)
-        .Parameters("paramOldPath") = IIf(Len(OldPath) > 0, OldPath, Null)
-        .Parameters("paramFileNameToBeFixed") = FileNameToBeFixed
-        .Execute
-    End With
-    
-    On Error Resume Next: CurrentDb.QueryDefs.Delete "qInsertAccnScans": On Error GoTo 0
+        With fAccnScan
+            .Controls("ACCN").value = IIf(Len(ACCN) > 0, Trim(UCase(ACCN)), Null)
+            .Controls("FileName").value = FileName
+            .Controls("FilePath").value = FilePath
+            .Controls("CabinetFolder").value = CabinetFolder
+            .Controls("OldPath").value = OldPath
+            .Controls("FileNameToBeFixed").value = FileNameToBeFixed Or (fAccnScan.NewRecord And Me.IsCopierScan)
+        End With
+        
+    End If
 End Sub
 
 Public Sub InsertIntoAccessions(Optional ByVal OnCurrent As Boolean, Optional ByVal NewRecord As Boolean, Optional ByRef ListView As Variant)
@@ -464,9 +512,7 @@ Public Sub InsertIntoAccessions(Optional ByVal OnCurrent As Boolean, Optional By
             rsAccessions.Update
         End If
     Else
-        If RegexMatch(FileName, MATCH_COPIER_SCAN) And NewRecord Then
-            Let FileNameToBeFixed = True
-        End If
+        Let FileNameToBeFixed = FileNameToBeFixed Or (IsCopierScan And NewRecord)
     End If
     
     'Use the file name / path for this Accession scan into the AccnScans table
@@ -668,7 +714,9 @@ Public Sub doCopyTo(NewPath As String)
     Let sNewFullPath = NewPath & "\" & FileName
     
     Name sOldFullPath As sNewFullPath
+    
     Let Url = sNewFullPath
+    Let OldPath = sOldFullPath
 End Sub
 
 '**
