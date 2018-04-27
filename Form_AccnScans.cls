@@ -78,6 +78,7 @@ Private Sub cmdInsert_Click()
             
             Let View.ACCN = Nz(Me!ACCN.value)
             
+            Let oAccnScan.NewRecord = Me.NewRecord
             View.AttachToRecord Location:=oAccnScan
         Next vItem
         

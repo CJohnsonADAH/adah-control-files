@@ -163,7 +163,6 @@ Public Sub AttachToRecord(Location As Variant, Optional NewRecord As Boolean, Op
         Set oAccnScan = Location
     End If
     
-    'INSERT INTO AccnScan VALUES (Me!ACCN.Value, sFilePath, sFileName)
     Dim oAx As cAccession
     If Len(ACCN) > 0 Then
         Let oAccnScan.ACCN = ACCN
@@ -173,7 +172,7 @@ Public Sub AttachToRecord(Location As Variant, Optional NewRecord As Boolean, Op
         If Len(ACCN) > 0 Then
     
             On Error GoTo InsertIntoAccessionsCatch
-            oAccnScan.InsertIntoAccessions OnCurrent:=True, NewRecord:=NewRecord, ListView:=Me
+            oAccnScan.InsertIntoAccessions OnCurrent:=True, NewAccessionRecord:=NewRecord, ListView:=Me
             On Error GoTo 0
     
         Else
@@ -184,7 +183,7 @@ Public Sub AttachToRecord(Location As Variant, Optional NewRecord As Boolean, Op
         End If
     
     Else
-        oAccnScan.InsertIntoAccnScans fAccnScan:=Form
+        oAccnScan.InsertIntoAccnScans Controller:=Form
     End If
     
     If Not ListControl Is Nothing Then

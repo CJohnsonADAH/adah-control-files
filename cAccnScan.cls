@@ -10,6 +10,7 @@ Attribute VB_Exposed = False
 Option Compare Database
 Option Explicit
 
+Private bNewRecord As Boolean
 Private sPathStart As String
 Private sDrive As String
 Private sFilePath As String
@@ -94,6 +95,13 @@ Public Property Let CabinetFolder(l As Long)
     Let bCabinetFolderSet = True
 End Property
 
+Public Property Get NewRecord() As Boolean
+    Let NewRecord = bNewRecord
+End Property
+
+Public Property Let NewRecord(b As Boolean)
+    Let bNewRecord = b
+End Property
 Private Function Folder() As cCabinetFolder
     If oFolder Is Nothing Then
         ResetFolderWithSlugs
@@ -429,10 +437,10 @@ End Function
 '* @uses cAccnScan::OldPath
 '* @uses cAccnScan::FileNameToBeFixed
 '**
-Public Sub InsertIntoAccnScans(Optional ByRef fAccnScan As Form)
+Public Sub InsertIntoAccnScans(Optional ByRef Controller As Form)
     Dim oQuery As DAO.QueryDef
     
-    If fAccnScan Is Nothing Then
+    If Controller Is Nothing Then
         On Error Resume Next: CurrentDb.QueryDefs.Delete "qInsertAccnScans": On Error GoTo 0
         
         Set oQuery = CurrentDb.CreateQueryDef( _
@@ -465,19 +473,19 @@ Public Sub InsertIntoAccnScans(Optional ByRef fAccnScan As Form)
         On Error Resume Next: CurrentDb.QueryDefs.Delete "qInsertAccnScans": On Error GoTo 0
     Else
     
-        With fAccnScan
+        With Controller
             .Controls("ACCN").value = IIf(Len(ACCN) > 0, Trim(UCase(ACCN)), Null)
             .Controls("FileName").value = FileName
             .Controls("FilePath").value = FilePath
             .Controls("CabinetFolder").value = CabinetFolder
             .Controls("OldPath").value = OldPath
-            .Controls("FileNameToBeFixed").value = FileNameToBeFixed Or (fAccnScan.NewRecord And Me.IsCopierScan)
+            .Controls("FileNameToBeFixed").value = FileNameToBeFixed Or (NewRecord And IsCopierScan)
         End With
         
     End If
 End Sub
 
-Public Sub InsertIntoAccessions(Optional ByVal OnCurrent As Boolean, Optional ByVal NewRecord As Boolean, Optional ByRef ListView As Variant)
+Public Sub InsertIntoAccessions(Optional ByVal OnCurrent As Boolean, Optional ByVal NewAccessionRecord As Boolean, Optional ByRef ListView As Variant)
     Dim sSuggestion As String
     Dim rsAccnScan As DAO.Recordset
     
@@ -487,7 +495,7 @@ Public Sub InsertIntoAccessions(Optional ByVal OnCurrent As Boolean, Optional By
     If Not OnCurrent Then
         SecureAccessionsRecord
     Else
-        Let FileNameToBeFixed = FileNameToBeFixed Or (IsCopierScan And NewRecord)
+        Let FileNameToBeFixed = FileNameToBeFixed Or (IsCopierScan And NewAccessionRecord)
     End If
     
     'Use the file name / path for this Accession scan into the AccnScans table
