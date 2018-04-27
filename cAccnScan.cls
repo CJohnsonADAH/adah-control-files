@@ -22,6 +22,7 @@ Private iCabinetFolder As Long
 Private oFolder As cCabinetFolder
 Private bCabinetFolderSet As Boolean
 Private sACCN As String
+Private bFileNameToBeFixed As Boolean
 
 Private dSheetTypeSlugs As Dictionary
 
@@ -122,7 +123,7 @@ End Function
 
 Public Function FileFolderSlug(Optional ByVal Old As Boolean) As String
     Dim myPath As String
-    Dim i As Integer
+    Dim I As Integer
     Dim sSlug As String
     Dim asFolders() As String
     
@@ -219,6 +220,14 @@ End Property
 Public Function SheetTypeSlug()
     Let SheetTypeSlug = GetSlugFromSheetType(SheetType)
 End Function
+
+Public Property Get FileNameToBeFixed() As Boolean
+    Let FileNameToBeFixed = bFileNameToBeFixed
+End Property
+
+Public Property Let FileNameToBeFixed(b As Boolean)
+    Let bFileNameToBeFixed = b
+End Property
 
 Public Function Exists() As Boolean
     Let Exists = Len(Dir(Drive & FilePath & "\" & FileName)) > 0
@@ -376,15 +385,58 @@ Public Function AccnDate() As Date
     End If
 End Function
 
+'**
+'* cAccnScan::InsertIntoAccnScans: use a parameterized SQL query to INSERT this object into a fresh record in AccnScans
+'*
+'* @uses cAccnScan::ACCN
+'* @uses cAccnScan::CabinetFolder
+'* @uses cAccnScan::FileName
+'* @uses cAccnScan::FilePath
+'* @uses cAccnScan::OldPath
+'* @uses cAccnScan::FileNameToBeFixed
+'**
+Public Sub InsertIntoAccnScans()
+    On Error Resume Next: CurrentDb.QueryDefs.Delete "qInsertAccnScans": On Error GoTo 0
+        
+    Set oQuery = CurrentDb.CreateQueryDef( _
+        Name:="qInsertAccnScans", _
+        SQLText:="INSERT INTO AccnScans (ACCN, VoyagerID, LNUMBER, NonAccnId, CabinetFolder, FileName, FilePath, OldPath, FileNameToBeFixed) VALUES (" _
+        & "[paramAccn], " _
+        & "[paramVoyagerID], " _
+        & "[paramLNUMBER], " _
+        & "[paramNonAccnId], " _
+        & "[paramCabinetFolder]," _
+        & "[paramFileName], " _
+        & "[paramFilePath], " _
+        & "[paramOldPath], " _
+        & "[paramFileNameToBeFixed])" _
+    )
+    
+    With oQuery
+        .Parameters("paramAccn") = Trim(UCase(ACCN))
+        .Parameters("paramVoyagerID") = Null
+        .Parameters("paramLNUMBER") = Null
+        .Parameters("paramNonAccnId") = Null
+        .Parameters("paramCabinetFolder") = CabinetFolder
+        .Parameters("paramFileName") = Trim(FileName)
+        .Parameters("paramFilePath") = Trim(FilePath)
+        .Parameters("paramOldPath") = IIf(Len(OldPath) > 0, OldPath, Null)
+        .Parameters("paramFileNameToBeFixed") = FileNameToBeFixed
+        .Execute
+    End With
+    
+    On Error Resume Next: CurrentDb.QueryDefs.Delete "qInsertAccnScans": On Error GoTo 0
+End Sub
+
 Public Sub InsertIntoAccessions(Optional ByVal OnCurrent As Boolean, Optional ByVal NewRecord As Boolean, Optional ByRef ListView As Variant)
     Dim sSuggestion As String
     Dim rsAccnScan As DAO.Recordset
     Dim rsAccessions As DAO.Recordset
     Dim origPath As String
     Dim origFileName As String
-    Dim bFileNameToBeFixed As Boolean
     
-    Let bFileNameToBeFixed = False
+    'FIXME: Do we ever need to be careful to respect a pre-existing setting?
+    Let FileNameToBeFixed = False
     If Not OnCurrent Then
         SecureCreatorRecord Creator
         
@@ -413,7 +465,7 @@ Public Sub InsertIntoAccessions(Optional ByVal OnCurrent As Boolean, Optional By
         End If
     Else
         If RegexMatch(FileName, MATCH_COPIER_SCAN) And NewRecord Then
-            Let bFileNameToBeFixed = True
+            Let FileNameToBeFixed = True
         End If
     End If
     
@@ -434,36 +486,7 @@ Public Sub InsertIntoAccessions(Optional ByVal OnCurrent As Boolean, Optional By
     Next vScan
     Set oAccession = Nothing
     
-    On Error Resume Next: CurrentDb.QueryDefs.Delete "qInsertAccnScans": On Error GoTo 0
-        
-    Set oQuery = CurrentDb.CreateQueryDef( _
-        Name:="qInsertAccnScans", _
-        SQLText:="INSERT INTO AccnScans (ACCN, VoyagerID, LNUMBER, NonAccnId, CabinetFolder, FileName, FilePath, OldPath, FileNameToBeFixed) VALUES (" _
-        & "[paramAccn], " _
-        & "[paramVoyagerID], " _
-        & "[paramLNUMBER], " _
-        & "[paramNonAccnId], " _
-        & "[paramCabinetFolder]," _
-        & "[paramFileName], " _
-        & "[paramFilePath], " _
-        & "[paramOldPath], " _
-        & "[paramFileNameToBeFixed])" _
-    )
-    
-    With oQuery
-        .Parameters("paramAccn") = Trim(UCase(ACCN))
-        .Parameters("paramVoyagerID") = Null
-        .Parameters("paramLNUMBER") = Null
-        .Parameters("paramNonAccnId") = Null
-        .Parameters("paramCabinetFolder") = CabinetFolder
-        .Parameters("paramFileName") = Trim(FileName)
-        .Parameters("paramFilePath") = Trim(FilePath)
-        .Parameters("paramOldPath") = IIf(Len(OldPath) > 0, OldPath, Null)
-        .Parameters("paramFileNameToBeFixed") = bFileNameToBeFixed
-        .Execute
-    End With
-    
-    On Error Resume Next: CurrentDb.QueryDefs.Delete "qInsertAccnScans": On Error GoTo 0
+    InsertIntoAccnScans
     
     Dim sOldFileName As String
     Dim sNewFileName As String
