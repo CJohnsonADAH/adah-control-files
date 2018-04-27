@@ -11,7 +11,6 @@ Option Compare Database
 Option Explicit
 
 Private bNewRecord As Boolean
-Private sPathStart As String
 Private sDrive As String
 Private sFilePath As String
 Private sFileName As String
@@ -92,18 +91,6 @@ Public Property Let FileName(sFN As String)
             SetFileSystemMetaData "Timestamp", DateSerial(Val(cMeta(3)), Val(cMeta(4)), Val(cMeta(5)))
         End If
     End If
-End Property
-
-Public Property Let PathStart(sPS As String)
-    sPathStart = sPS
-End Property
-
-Public Property Get PathStart() As String
-    If Len(sPathStart) = 0 Then
-        sPathStart = "CollectionsManagement"
-    End If
-    
-    PathStart = sPathStart
 End Property
 
 Public Property Get OldPath() As String
@@ -239,9 +226,6 @@ Public Property Let Url(sUrl As String)
     For I = iStartPath To UBound(aPath) - 1
         If Len(aPath(I)) = 0 Then
             'NOOP
-        ElseIf (Len(sDrive) = 0) And (aPath(I) = PathStart) Then
-            sDrive = "\" & sPath
-            sPath = "\" & aPath(I)
         Else
             sPath = sPath & "\" & aPath(I)
         End If
