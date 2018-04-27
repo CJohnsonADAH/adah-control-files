@@ -192,6 +192,7 @@ Public Sub AttachToRecord(Location As Variant, Optional NewRecord As Boolean, Op
     If Not Form Is Nothing Then
         Let Form!FileName.value = oAccnScan.FileName
         Let Form!FilePath.value = oAccnScan.FilePath
+        Let Form!CabinetFolder.value = oAccnScan.CabinetFolder
     End If
     
     Exit Sub

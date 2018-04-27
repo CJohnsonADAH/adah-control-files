@@ -76,6 +76,8 @@ Private Sub cmdInsert_Click()
                 End If
             End If
             
+            Let oAccnScan.OldPath = asFileFolderSlugs(1)
+            
             Let View.ACCN = Nz(Me!ACCN.value)
             
             View.AttachToRecord Location:=oAccnScan

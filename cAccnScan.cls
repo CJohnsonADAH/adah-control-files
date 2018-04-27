@@ -14,9 +14,13 @@ Private sPathStart As String
 Private sDrive As String
 Private sFilePath As String
 Private sFileName As String
+Private sOldPath As String
 Private sFileNameCorrected As String
 Private sSheetType As String
 Private bSheetTypeSet As Boolean
+Private iCabinetFolder As Long
+Private oFolder As cCabinetFolder
+Private bCabinetFolderSet As Boolean
 Private sACCN As String
 
 Private dSheetTypeSlugs As Dictionary
@@ -68,26 +72,57 @@ Public Property Get PathStart() As String
     PathStart = sPathStart
 End Property
 
-Public Property Get FileFolder()
-    Dim oFolder As cCabinetFolder
-    
+Public Property Get OldPath() As String
+    Let OldPath = sOldPath
+End Property
+
+Public Property Let OldPath(s As String)
+    Let sOldPath = s
+End Property
+
+Public Property Get CabinetFolder() As Long
+    If bCabinetFolderSet Then
+        Let CabinetFolder = iCabinetFolder
+    ElseIf Len(FilePath) > 0 Then
+        Let CabinetFolder = getCabinetFolderID
+    End If
+End Property
+
+Public Property Let CabinetFolder(l As Long)
+    Let iCabinetFolder = l
+    Let bCabinetFolderSet = True
+End Property
+
+Private Function Folder() As cCabinetFolder
+    If oFolder Is Nothing Then
+        ResetFolderWithSlug
+    End If
+    Set Folder = oFolder
+End Function
+
+Private Sub ResetFolderWithSlug()
     Set oFolder = New cCabinetFolder: With oFolder
         .FilePath = FileFolderSlug
     End With
-    
-    If oFolder.ID = 0 Then
-        oFolder.Insert
-    End If
-        
-    If oFolder.ID <> 0 Then
-        Let FileFolder = oFolder.Label
-    End If
-    
-End Property
+End Sub
 
-Public Function FileFolderSlug() As String
+Private Function getCabinetFolderID() As Integer
+    ResetFolderWithSlug
+    Let getCabinetFolderID = oFolder.ID
+End Function
+
+Public Function FileFolder() As String
+    Dim ID As Long
+    
+    Let ID = CabinetFolder
+    If ID = 0 Then Folder.Insert
+    
+    If ID <> 0 Then Let FileFolder = Folder.Label
+End Function
+
+Public Function FileFolderSlug(Optional ByVal Old As Boolean) As String
     Dim myPath As String
-    Dim I As Integer
+    Dim i As Integer
     Dim sSlug As String
     Dim asFolders() As String
     
@@ -403,19 +438,31 @@ Public Sub InsertIntoAccessions(Optional ByVal OnCurrent As Boolean, Optional By
         
     Set oQuery = CurrentDb.CreateQueryDef( _
         Name:="qInsertAccnScans", _
-        SQLText:="INSERT INTO AccnScans (ACCN, NonAccnId, FileName, FilePath, FileNameToBeFixed) VALUES (" _
+        SQLText:="INSERT INTO AccnScans (ACCN, VoyagerID, LNUMBER, NonAccnId, CabinetFolder, FileName, FilePath, OldPath, FileNameToBeFixed) VALUES (" _
         & "[paramAccn], " _
-        & "NULL, " _
+        & "[paramVoyagerID], " _
+        & "[paramLNUMBER], " _
+        & "[paramNonAccnId], " _
+        & "[paramCabinetFolder]," _
         & "[paramFileName], " _
-        & "[paramFilePath], [paramFileNameToBeFixed])" _
+        & "[paramFilePath], " _
+        & "[paramOldPath], " _
+        & "[paramFileNameToBeFixed])" _
     )
-    oQuery.Parameters("paramAccn") = Trim(UCase(ACCN))
-    oQuery.Parameters("paramFileName") = Trim(FileName)
-    oQuery.Parameters("paramFilePath") = Trim(FilePath)
-    oQuery.Parameters("paramFileNameToBeFixed") = bFileNameToBeFixed
     
-    oQuery.Execute
-
+    With oQuery
+        .Parameters("paramAccn") = Trim(UCase(ACCN))
+        .Parameters("paramVoyagerID") = Null
+        .Parameters("paramLNUMBER") = Null
+        .Parameters("paramNonAccnId") = Null
+        .Parameters("paramCabinetFolder") = CabinetFolder
+        .Parameters("paramFileName") = Trim(FileName)
+        .Parameters("paramFilePath") = Trim(FilePath)
+        .Parameters("paramOldPath") = IIf(Len(OldPath) > 0, OldPath, Null)
+        .Parameters("paramFileNameToBeFixed") = bFileNameToBeFixed
+        .Execute
+    End With
+    
     On Error Resume Next: CurrentDb.QueryDefs.Delete "qInsertAccnScans": On Error GoTo 0
     
     Dim sOldFileName As String

@@ -14,6 +14,8 @@ Private iID As Integer
 Private sCreator As String
 Private sLabel As String
 Private sFilePath As String
+Private sFileSourcePath As String
+Private sFolderPath As String
 Private sAddedToDatabaseBy As String
 Private sAddedToDatabaseOn As Date
 
@@ -46,6 +48,20 @@ Public Property Let FilePath(sF As String)
     FillOutFromRecordSet ("FilePath='" & Replace(Replace(sF, "'", "''"), ";", "") & "'")
     
     sFilePath = sF
+End Property
+
+Public Property Get FileSourcePath() As String
+    FileSourcePath = sFileSourcePath
+End Property
+
+Public Property Let FileSourcePath(s As String)
+    FillOutFromRecordSet ("FileSourcePath='" & Replace(Replace(s, "'", "''"), ";", "") & "'")
+    
+    sFileSourcePath = s
+End Property
+
+Public Property Get FolderPath() As String
+    Let FolderPath = sFolderPath
 End Property
 
 Public Property Get AddedToDatabaseBy() As String
@@ -111,16 +127,20 @@ Private Sub FillOutFromRecordSet(sqlWhere As String)
     
     If Not oRS.EOF Then
         Let iID = oRS!ID
-        Let sCreator = oRS!Creator
-        Let sLabel = oRS!Label
-        Let sFilePath = oRS!FilePath
-        Let sAddedToDatabaseBy = oRS!AddedToDatabaseBy
-        Let sAddedToDatabaseOn = oRS!AddedToDatabaseOn
+        Let sCreator = Nz(oRS!Creator.value)
+        Let sLabel = Nz(oRS!Label.value)
+        Let sFilePath = Nz(oRS!FilePath.value)
+        Let sFileSourcePath = Nz(oRS!FileSourcePath.value)
+        Let sFolderPath = Nz(oRS!FolderPath.value)
+        Let sAddedToDatabaseBy = Nz(oRS!AddedToDatabaseBy)
+        Let sAddedToDatabaseOn = Nz(oRS!AddedToDatabaseOn)
     Else
         Let iID = 0
         Let sCreator = ""
         Let sLabel = ""
         Let sFilePath = ""
+        Let sFileSourcePath = ""
+        Let sFolderPath = ""
         Let sAddedToDatabaseBy = ""
         Let sAddedToDatabaseOn = Now
     End If
@@ -146,7 +166,7 @@ Private Function FilterFilePath(c As Variant) As Collection
         'Place 1: Probably a CurName
         If i = 1 Then
             With re
-                .pattern = "^[A-Za-z]{3}$"
+                .Pattern = "^[A-Za-z]{3}$"
                 .IgnoreCase = True
             End With
             If re.Test(Trim(sItem)) Then
@@ -161,7 +181,7 @@ Private Function FilterFilePath(c As Variant) As Collection
         'Place 2: Possibly a date or date range
         If i = 2 Then
             With re
-                .pattern = "^[0-9]{4,8}$"
+                .Pattern = "^[0-9]{4,8}$"
             End With
             If re.Test(Trim(sItem)) Then
                 If Len(sItem) > 4 Then
