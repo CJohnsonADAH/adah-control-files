@@ -52,8 +52,6 @@ Private Sub cmdInsert_Click()
                 .Url = sItem
             End With
     
-            Let asFileFolderSlugs(1) = oAccnScan.FileFolderSlug
-    
             If Not oAccnScan.isOnDefaultDrive Then
                 If Len(sDestinationFolder) = 0 Then
                     Let sDestinationFolder = oAccnScan.FolderHomePath
@@ -72,11 +70,11 @@ Private Sub cmdInsert_Click()
                 If Len(sDestinationFolder) > 0 Then
                     oAccnScan.doCopyTo NewPath:=sDestinationFolder
                     Let sItem = oAccnScan.Url
-                    Let asFileFolderSlugs(2) = oAccnScan.FileFolderSlug
                 End If
             End If
             
-            Let oAccnScan.OldPath = asFileFolderSlugs(1)
+            Let asFileFolderSlugs(1) = oAccnScan.FileFolderSlug(Old:=True)
+            Let asFileFolderSlugs(2) = oAccnScan.FileFolderSlug(Old:=False)
             
             Let View.ACCN = Nz(Me!ACCN.value)
             
