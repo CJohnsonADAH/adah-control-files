@@ -25,10 +25,16 @@ Private Type AccessionDetails
     Date As Date
 End Type
 
+Public Sub RefreshAttachmentView()
+    Me!lstAccnScans.Requery
+    AccnScanListView.ReloadPDFFromList
+End Sub
+
 Private Property Get AccnScanListView() As cAccnScanListView
 
     If oAccnScanListView Is Nothing Then
         Set oAccnScanListView = New cAccnScanListView
+        Set oAccnScanListView.Form = Me
         Set oAccnScanListView.BrowserControl = Me!PreviewBrowser
         Set oAccnScanListView.ListControl = Me!lstAccnScans
         
@@ -56,9 +62,9 @@ Private Sub Update_txtCreatorName_from(Text As String, Optional NewRecord As Boo
     Me!txtCreatorName.value = oAgency.Name(Short:=False)
     
     If Len(Me!txtCreatorName.value) > 0 Or NewRecord Then
-        Me!txtCreatorName.BackColor = RGB(192, 192, 192) 'Light grey
+        Me!txtCreatorName.BackColor = COLOR_DISABLED
     Else
-        Me!txtCreatorName.BackColor = RGB(255, 255, 0) 'Yellow!
+        Me!txtCreatorName.BackColor = COLOR_ALERT
     End If
     
 End Sub
@@ -69,7 +75,7 @@ Private Sub cmdAddScan_Click()
     Dim bAttachmentError As Boolean
     Dim sDestinationFolder As String
     
-    Me!ACCN.BackColor = RGB(255, 255, 255)
+    Me!ACCN.BackColor = COLOR_UNMARKED
     
     Set dlgSourceFile = Application.FileDialog(msoFileDialogFilePicker): With dlgSourceFile
         .AllowMultiSelect = True
@@ -138,6 +144,9 @@ Private Sub DoAttachScanFile(ByVal File As String, ByRef Halt As Boolean, ByRef 
     
 AttachToRecordTry:
     On Error GoTo AttachToRecordCatch
+    If oAccnScan.Timestamp = 0 And Not IsNull(Me!AccnDate.value) Then
+        Let oAccnScan.Timestamp = Me!AccnDate.value
+    End If
     AccnScanListView.AttachToRecord Location:=oAccnScan, NewRecord:=bWasNewRecord
     On Error GoTo 0
     
@@ -154,20 +163,30 @@ AttachToRecordTry:
     
 AttachToRecordCatch:
     Dim Fixed As Boolean
-
+    Dim ErrCode As Long
+    
     Let Fixed = False
     If Err.Number = EX_NOHOOK Then
         
         If Me.NewRecord Then
             AccnScanListView.View FileName:=File
-            DoFillOutAndSave Scan:=oAccnScan, OK:=Fixed
+            Let oAccnScan.SheetType = "ACCN"
+            DoFillOutAndSave Scan:=oAccnScan, OK:=Fixed, ErrCode:=ErrCode
+            
+            If Not Fixed Then
+                If ErrCode = EX_DUPLICATE_KEY_VALUE Then
+                    Me.Undo
+                    DoCmd.SearchForRecord Record:=acFirst, WhereCondition:="ACCN='" & oAccnScan.ACCN = "'"
+                    Let Fixed = True
+                End If
+            End If
         End If
     End If
     
     If Fixed Then
-        Resume
+        Resume AttachToRecordTry
     Else
-        Me!ACCN.BackColor = RGB(255, 192, 192)
+        Me!ACCN.BackColor = COLOR_MARKEDERROR
         Let Halt = True
         Resume AttachToRecordFinally
     End If
@@ -178,7 +197,7 @@ AttachToRecordFinally:
 
 End Sub
 
-Private Sub DoFillOutAndSave(Scan As cAccnScan, ByRef OK As Boolean)
+Private Sub DoFillOutAndSave(ByRef Scan As cAccnScan, ByRef OK As Boolean, ByRef ErrCode As Long)
     Dim I As Integer
         
     Dim sDetails As String
@@ -196,6 +215,7 @@ Private Sub DoFillOutAndSave(Scan As cAccnScan, ByRef OK As Boolean)
 
     'Innocent until proven guilty
     Let OK = True
+    Let ErrCode = 0
     
     If Len(rDetails.ACCN) > 0 Then
         If Len(rDetails.Creator) = 0 Then
@@ -221,6 +241,9 @@ Private Sub DoFillOutAndSave(Scan As cAccnScan, ByRef OK As Boolean)
         DoCmd.RunCommand acCmdSaveRecord
         On Error GoTo 0
         
+        Let Scan.ACCN = rDetails.ACCN
+        'Let Scan.Creator = rDetails.Creator
+        'Let Scan.Timestamp = rDetails.Date
     Else
         'Proven guilty: no ACCN
         Let OK = False
@@ -229,6 +252,7 @@ Private Sub DoFillOutAndSave(Scan As cAccnScan, ByRef OK As Boolean)
     
 cmdSaveRecordCatch:
     'Proven guilty: error during record save
+    Let ErrCode = Err.Number
     Let OK = False
     Resume Next
 
@@ -459,13 +483,6 @@ Private Function BulkAddDialog(Optional ByVal Path As String) As Integer
     boxProgress.Width = 10
     For Each sItem In f.SelectedItems
         boxProgress.Visible = True
-        'Should contain a full path, e.g. "S:\CollectionsManagement\AgencyFiles\Local\03_MontgomeryCounty\ControlFiles\03_1994_0451_19940912.PDF"
-        'Set oAccnScan = New cAccnScan
-        'oAccnScan.Url = sItem
-        
-        'On Error GoTo HandleInsertError
-        'oAccnScan.InsertIntoAccessions
-        'On Error GoTo 0
         
         DoCmd.GoToRecord Record:=acNewRec
         DoAttachScanFile File:=Nz(sItem), Halt:=bHalt, DestinationFolder:=sDestFolder
@@ -479,10 +496,6 @@ Private Function BulkAddDialog(Optional ByVal Path As String) As Integer
     Next sItem
     boxProgress.Visible = False
     Me.Requery
-    
-    'DoCmd.GoToControl "ACCN"
-    'DoCmd.FindRecord FindWhat:=oAccnScan.ACCN, Match:=acEntire, MatchCase:=False, OnlyCurrentField:=acCurrent
-
 End Function
 
 '**

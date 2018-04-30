@@ -112,6 +112,7 @@ End Property
 Public Property Let CabinetFolder(l As Long)
     Let iCabinetFolder = l
     Let bCabinetFolderSet = True
+    ResetFolderWithID
 End Property
 
 Public Property Get NewRecord() As Boolean
@@ -128,6 +129,12 @@ Private Function Folder() As cCabinetFolder
     End If
     Set Folder = oFolder
 End Function
+
+Private Sub ResetFolderWithID()
+    Set oFolder = New cCabinetFolder: With oFolder
+        .ID = iCabinetFolder
+    End With
+End Sub
 
 Private Sub ResetFolderWithSlugs()
     Set oFolder = New cCabinetFolder: With oFolder
@@ -455,6 +462,36 @@ Public Function Creator() As String
 
 End Function
 
+Public Sub CheckFileNameToBeFixed()
+    Let FileNameToBeFixed = FileNameToBeFixed Or IsCopierScan
+End Sub
+
+Public Sub InsertIntoAccessions(Optional ByRef Controller As Form)
+    Dim oAccession As cAccession
+    
+    'FIXME: Do we ever need to be careful to respect a pre-existing setting?
+    Let FileNameToBeFixed = False
+    
+    If Controller Is Nothing Then
+        SecureCreatorRecord Creator
+
+        Set oAccession = New cAccession: With oAccession
+        .ACCN = ACCN
+        .AccnDate = Timestamp
+        .Creator = Creator
+        .CabinetFolder = Folder.Label
+        .Sign
+        End With
+    
+        oAccession.Secure
+        
+    Else
+    
+        Controller.Dirty = False
+        
+    End If
+End Sub
+
 '**
 '* cAccnScan::InsertIntoAccnScans: use a parameterized SQL query to INSERT this object into a fresh record in AccnScans
 '*
@@ -466,7 +503,22 @@ End Function
 '* @uses cAccnScan::FileNameToBeFixed
 '**
 Public Sub InsertIntoAccnScans(Optional ByRef Controller As Form)
+    'Use the file name / path for this Accession scan into the AccnScans table
+    Dim Rs As DAO.Recordset
     Dim oQuery As DAO.QueryDef
+    Dim oAccession As cAccession
+    Dim cScans As Collection
+    Dim vScan As Variant
+    
+    'Check to see whether or not this is a duplicate of an existing AccnScan record
+    Set oAccession = New cAccession: Let oAccession.ACCN = ACCN
+    Set cScans = oAccession.Attachments
+    For Each vScan In cScans
+        If (vScan.FileName = FileName) And (vScan.RecordedFilePath = FilePath) Then
+            Err.Raise Number:=EX_ACCNSCAN_DUPLICATE, Source:="InsertIntoAccessions", Description:="I DON'T THINK HE'LL BE VERY INTERESTED IN " & FileName & ". HE'S ALREADY GOT ONE, YOU SEE? IT'SA VERY NICE-UH!"
+        End If
+    Next vScan
+    Set oAccession = Nothing
     
     If Controller Is Nothing Then
         On Error Resume Next: CurrentDb.QueryDefs.Delete "qInsertAccnScans": On Error GoTo 0
@@ -503,6 +555,8 @@ Public Sub InsertIntoAccnScans(Optional ByRef Controller As Form)
         End With
         
         On Error Resume Next: CurrentDb.QueryDefs.Delete "qInsertAccnScans": On Error GoTo 0
+        
+        Set oQuery = Nothing
     Else
     
         With Controller
@@ -519,58 +573,8 @@ Public Sub InsertIntoAccnScans(Optional ByRef Controller As Form)
     End If
 End Sub
 
-Public Sub InsertIntoAccessions(Optional ByVal OnCurrent As Boolean, Optional ByVal NewAccessionRecord As Boolean, Optional ByRef ListView As Variant)
-    Dim sSuggestion As String
-    Dim rsAccnScan As DAO.Recordset
-    
-    'FIXME: Do we ever need to be careful to respect a pre-existing setting?
-    Let FileNameToBeFixed = False
-    
-    If Not OnCurrent Then
-        SecureAccessionsRecord
-    Else
-        Let FileNameToBeFixed = FileNameToBeFixed Or (IsCopierScan And NewAccessionRecord)
-    End If
-    
-    'Use the file name / path for this Accession scan into the AccnScans table
-    Dim Rs As DAO.Recordset
-    Dim oQuery As DAO.QueryDef
-    Dim oAccession As cAccession
-    Dim cScans As Collection
-    Dim vScan As Variant
-    
-    'Check to see whether or not this is a duplicate of an existing AccnScan record
-    Set oAccession = New cAccession: Let oAccession.ACCN = ACCN
-    Set cScans = oAccession.Attachments
-    For Each vScan In cScans
-        If (vScan.FileName = FileName) And (vScan.RecordedFilePath = FilePath) Then
-            Err.Raise EX_ACCNSCAN_DUPLICATE, "InsertIntoAccessions: I DON'T THINK HE'LL BE VERY INTERESTED IN " & FileName & ". HE'S ALREADY GOT ONE, YOU SEE? IT'SA VERY NICE-UH!"
-        End If
-    Next vScan
-    Set oAccession = Nothing
-    
-    InsertIntoAccnScans
-    
-    Dim sOldFileName As String
-    Dim sNewFileName As String
-    
-    If bFileNameToBeFixed Then
-        Let sOldFileName = FileName
-        
-        If Not IsMissing(ListView) Then
-            If IsObject(ListView) And (Not ListView Is Nothing) And OnCurrent Then
-                ListView.Blank
-            End If
-        End If
-        
-        ConvertFileName Result:=sNewFileName
-    End If
-    
-    Set oQuery = Nothing
 
-End Sub
-
-Public Sub ConvertFileName(ByRef Result As String)
+Public Sub ConvertFileName(Optional ByRef Result As String)
     Dim oIsOldAccnFile As New RegExp
     Dim reIsCopierScan As New RegExp
     Dim reIsBadDateScan As New RegExp
@@ -773,25 +777,6 @@ Public Sub doCopyTo(NewPath As String)
     
     Let Url = sNewFullPath
     Let OldPath = sOldFullPath
-End Sub
-
-Private Sub SecureAccessionsRecord()
-    Dim oAccession As cAccession
-    'Dim origPath As String
-    'Dim origFileName As String
-    
-    SecureCreatorRecord Creator
-
-    Set oAccession = New cAccession: With oAccession
-        .ACCN = ACCN
-        .AccnDate = Timestamp
-        .Creator = Creator
-        .CabinetFolder = FileFolder
-        .Sign
-    End With
-    
-    oAccession.Secure
-
 End Sub
 
 '**

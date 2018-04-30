@@ -114,8 +114,13 @@ End Property
 Public Property Get Minor() As String
     Dim iMinor As Long
     
-    Let iMinor = CLng(sMinor)
-    Let Minor = Format(iMinor, "0000")
+    If Len(sMinor) > 0 Then
+        Let iMinor = CLng(sMinor)
+        Let Minor = Format(iMinor, "0000")
+    Else
+        Let Minor = ""
+    End If
+    
 End Property
 
 '**

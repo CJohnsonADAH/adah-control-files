@@ -16,6 +16,7 @@ Option Compare Database
 Option Explicit
 
 Private oView As Object
+Private bInsertedAccession As Boolean
 
 Private Property Get View() As Object
     If oView Is Nothing Then
@@ -83,10 +84,67 @@ Private Sub cmdInsert_Click()
         Next vItem
         
         View.ReloadPDFFromForm
+        
+        Me!Timestamp.SetFocus
     End If
     Exit Sub
     
 End Sub
+
+Private Sub Form_AfterUpdate()
+    RefreshLabelLinks
+    
+    If bInsertedAccession Then
+        DoEvents
+        DoCmd.OpenForm FormName:="Accessions"
+        Forms!Accessions.FilterOn = False
+        DoCmd.SearchForRecord ObjectType:=acDataForm, ObjectName:="Accessions", Record:=acFirst, WhereCondition:="ACCN='" & Me!ACCN.value & "'"
+        Forms!Accessions.RefreshAttachmentView
+    End If
+    Let bInsertedAccession = False
+End Sub
+
+Private Sub Form_BeforeUpdate(Cancel As Integer)
+    Dim N As String
+    Dim Scan As cAccnScan
+    
+    If Me.NewRecord And Len(Nz(Me!ACCN.value)) > 0 Then
+        'Check to see if we have anything in the Accessions table already
+        Let N = DCount("ACCN", "Accessions", "ACCN='" & Nz(Me!ACCN.value) & "'")
+        If (N = 0) And hasAccnSheet Then
+            Dim YesNo As Long
+            Let YesNo = MsgBox("Create an Accession record for " & Me!ACCN.value & "?", Buttons:=vbYesNo)
+            If YesNo = 6 Then '6 = Yes button, 7 = No button
+            
+                Set Scan = New cAccnScan: With Scan
+                    .FileName = Nz(Me!FileName.value)
+                    .FilePath = Nz(Me!FilePath.value)
+                    .ACCN = Nz(Me!ACCN.value)
+                    .Timestamp = Nz(Me!Timestamp.value)
+                    .SheetType = "ACCN"
+                    If Not IsNull(Me!CabinetFolder.value) Then
+                        .CabinetFolder = Me!CabinetFolder.value
+                    End If
+                End With
+                
+                Scan.InsertIntoAccessions
+                Let Me!ACCN.BackColor = COLOR_UNMARKED
+                Let bInsertedAccession = True
+                
+            Else
+            
+                Me!ACCN.BackColor = COLOR_MARKEDERROR
+                Me!ACCN.ControlTipText = ""
+                Let Cancel = True
+                
+            End If
+        End If
+    End If
+End Sub
+
+Private Function hasAccnSheet()
+    Let hasAccnSheet = (Len(Nz(Me!SheetType)) = 0 Or Nz(Me!SheetType.value) = "ACCN")
+End Function
 
 Private Sub Form_Close()
     If Not oView Is Nothing Then
@@ -99,6 +157,8 @@ End Sub
 Private Sub Form_Current()
     Let View.ACCN = Nz(Me!ACCN.value)
     View.ReloadPDFFromForm
+    
+    Me!ACCN.BackColor = RGB(255, 255, 255)
     
     RefreshLabelLinks
 End Sub

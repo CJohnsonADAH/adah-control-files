@@ -149,7 +149,6 @@ Public Sub AttachToRecord(Location As Variant, Optional NewRecord As Boolean, Op
     Dim I As Integer
     Dim f As Object
     Dim sACCN As String
-    Dim sDate As String
     Dim aParts() As String
     Dim sCreator As String
     Dim oAccnScan As New cAccnScan
@@ -169,10 +168,23 @@ Public Sub AttachToRecord(Location As Variant, Optional NewRecord As Boolean, Op
     End If
     
     If Form Is Nothing Then
+        'NOOP
+    ElseIf TypeName(Form) = "Form_Accessions" Then
         If Len(ACCN) > 0 Then
     
             On Error GoTo InsertIntoAccessionsCatch
-            oAccnScan.InsertIntoAccessions OnCurrent:=True, NewAccessionRecord:=NewRecord, ListView:=Me
+            
+            oAccnScan.InsertIntoAccessions Controller:=Form
+            oAccnScan.InsertIntoAccnScans
+            
+            If NewRecord Then
+                oAccnScan.CheckFileNameToBeFixed
+                If oAccnScan.FileNameToBeFixed Then
+                    Blank
+                    oAccnScan.ConvertFileName
+                End If
+            End If
+            
             On Error GoTo 0
     
         Else
@@ -182,7 +194,7 @@ Public Sub AttachToRecord(Location As Variant, Optional NewRecord As Boolean, Op
         
         End If
     
-    Else
+    ElseIf TypeName(Form) = "Form_AccnScans" Then
         oAccnScan.InsertIntoAccnScans Controller:=Form
     End If
     
@@ -238,7 +250,7 @@ Public Sub ReloadPDF(Optional ByVal selectedFileName As String, Optional ByVal s
         Set cAttachmentPaths = oAccession.Attachments
     Else
         Set cAttachmentPaths = New Collection
-        If Not Form Is Nothing Then
+        If TypeName(Form) = "Form_AccnScans" Then
             If Len(Nz(Form!FileName.value)) > 0 Then
                 cAttachmentPaths.Add oSelection
             End If
