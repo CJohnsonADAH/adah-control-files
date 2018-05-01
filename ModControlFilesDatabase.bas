@@ -673,10 +673,49 @@ Public Function RenamePDFs(Optional ByVal LogLevel As Integer)
                 .Url = sDrive & vSearchDir & "\" & sFileName
             End With
             
-            If oAccnScan.IsAccnSheet(Version:=2) Then
-                ' NOOP
-            ElseIf oAccnScan.IsAccnSheet(Version:=1) Then
-                ' NOOP
+            ' Is this scan file referenced in AccnScans?
+            Set Rs = CurrentDb.OpenRecordset("SELECT * FROM AccnScans LEFT JOIN Accessions ON (AccnScans.ACCN=Accessions.ACCN) WHERE FileName='" & Replace(sFileName, "'", "''") & "'")
+                
+            ' Yes: Get the meta-data from the database, then use that to enforce the naming convertion as need be
+            If Not Rs.EOF Then
+                Let sFullPath = sDrive & vSearchDir & "\" & sFileName
+                
+                ' Is this scan file flagged as needing a fix for the naming convention?
+                If Rs!FileNameToBeFixed.value Then
+                    Let oAccnScan.SheetType = Nz(Rs!SheetType.value)
+                    If Nz(Rs!Timestamp.value) <> 0 Then
+                        Let oAccnScan.Timestamp = Nz(Rs!Timestamp.value)
+                    End If
+                    If Len(Nz(Rs.Fields("AccnScans.ACCN").value)) > 0 Then
+                        Let oAccnScan.ACCN = Nz(Rs.Fields("AccnScans.ACCN").value)
+                    End If
+                        
+                    Let sCreator = Nz(Rs!Creator.value)
+                    If Len(sCreator) = 0 Then
+                        Let sCreator = oAccnScan.Creator
+                    End If
+                    Let sCurName = GetCurNameFromCreatorCode(sCreator)
+                    
+                    oAccnScan.ConvertFileName Result:=sNewFileName
+                    If Len(sNewFileName) > 0 Then
+                        If LogLevel = 0 Or LogLevel > 0 Then
+                            Debug.Print "COPIER SCAN [DB]: ", sFullPath, "=>", sNewFileName
+                        End If
+                    End If
+                Else
+                    If LogLevel = 0 Or LogLevel > 1 Then
+                        Debug.Print oAccnScan.SheetType, "UNPROCESSED [NO FIX CHECK]: ", sFileName
+                    End If
+                End If
+                
+            'No, but we can tell it's an ACCN sheet from the naming convention
+            ElseIf oAccnScan.IsAccnSheet Then
+                'NOOP
+                If LogLevel = 0 Or LogLevel > 1 Then
+                    Debug.Print "ACCN SHEET UNPROCESSED [NO DB]: ", sFileName
+                End If
+                    
+            'No, but we can tell it's a documentation sheet from the V1 naming convention
             ElseIf oAccnScan.IsDocumentationSheet(Version:=1) Then
                 Set cBits = New Collection
                 cBits.Add RegexComponent(sFileName, oAccnScan.MATCH_DOCUMENTATION_V1, 1)
@@ -699,69 +738,12 @@ Public Function RenamePDFs(Optional ByVal LogLevel As Integer)
                 Rs.Close
                 
                 Set cBits = Nothing
-            ElseIf oAccnScan.IsCopierScan Or oAccnScan.IsDocumentationSheet(Version:=2) Then
-                
-                ' Is it referenced in AccnScans?
-                Set Rs = CurrentDb.OpenRecordset("SELECT * FROM AccnScans LEFT JOIN Accessions ON (AccnScans.ACCN=Accessions.ACCN) WHERE FileName='" & Replace(sFileName, "'", "''") & "'")
-                
-                'No. We don't have any meta-data to intelligently rename it, so skip it for now.
-                If Rs.EOF Then
-                    If LogLevel = 0 Or LogLevel > 1 Then
-                        Debug.Print "COPIER SCAN/DOC SHEET UNPROCESSED [NO DB]: ", sFileName
-                    End If
-                    
-                'Yes. Get the meta-data from the database
-                Else
-                    Let sFullPath = sDrive & vSearchDir & "\" & sFileName
-                    If Rs!FileNameToBeFixed.value Then
-                        Let oAccnScan.SheetType = Rs!SheetType.value
-                        Let oAccnScan.Timestamp = Rs!Timestamp.value
-                        
-                        Let sCreator = Nz(Rs!Creator.value)
-                        If Len(sCreator) = 0 Then
-                            Let sCreator = oAccnScan.Creator
-                        End If
-                        Let sCurName = GetCurNameFromCreatorCode(sCreator)
-                        
-                        'If Len(Nz(Rs!SheetType.value)) > 0 And UCase(Nz(Rs!SheetType.value)) <> "ACCN" Then
-                        '
-                        '    Let oAccnScan.SheetType = Nz(Rs!SheetType.value)
-                        '    Let sNewFileName = sCurName & oAccnScan.SheetTypeSlug & GetDateSlug(Rs!Timestamp.value) & ".PDF"
-                        '
-                        'ElseIf Len(Nz(Rs.Fields("AccnScans.ACCN").value)) > 0 Then
-                        '
-                        '    Let sNewFileName = sCurName & Replace(Nz(Rs.Fields("AccnScans.ACCN").value), ".", "") & ".PDF"
-                        '
-                        'Else
-                        '    Let sNewFileName = sFileName
-                        'End If
-                        
-                        'Let sNewFullPath = sDrive & vSearchDir & "\" & sNewFileName
-                        
-                        oAccnScan.ConvertFileName Result:=sNewFileName
-                        If Len(sNewFileName) > 0 Then
-                            If LogLevel = 0 Or LogLevel > 0 Then
-                                Debug.Print "COPIER SCAN [DB]: ", sFullPath, "=>", sNewFileName
-                            End If
-                        End If
-                        
-                        'On Error GoTo CatchNameAsFailure
-                        'Name sFullPath As sNewFullPath
-                        'On Error GoTo 0
-                        'Rs.Edit
-                        'Let Rs!FileName = sNewFileName
-                        'Let Rs!FileNameToBeFixed = False
-                        'Rs.Update
-                        
-                        
-                    Else
-                        If LogLevel = 0 Or LogLevel > 1 Then
-                            Debug.Print "COPIER SCAN UNPROCESSED [DB]: ", sFileName
-                        End If
-                    End If
-                End If
-                Rs.Close
-                
+            
+            'No, but we can tell it's a documentation sheet from the V2 naming convention
+            ElseIf oAccnScan.IsDocumentationSheet(Version:=2) Then
+                'NOOP
+            
+            'No, and we can't really tell what it is from the naming conventions
             Else
                 If LogLevel = 0 Or LogLevel > 2 Then
                     Debug.Print "MISC UNPROCESSED: ", sFileName

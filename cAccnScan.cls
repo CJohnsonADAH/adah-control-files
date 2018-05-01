@@ -607,8 +607,23 @@ Public Sub ConvertFileName(Optional ByRef Result As String)
         .Pattern = MATCH_DOCUMENTATION_V2
     End With
     
-    Set cRefs = oIsOldAccnFile.Execute(FileName)
-    If cRefs.Count > 0 Then
+    'Phase 1. Try to use database meta-data
+    If SheetType = "ACCN" Then
+        
+        sCurName = GetCurNameFromCreatorCode(Creator)
+        
+        Let sNewFileExtension = ".PDF"
+        If Len(ACCN) > 0 Then
+            Let sNewFileBaseName = sCurName & Replace(ACCN, ".", "")
+        Else
+            Let sNewFileBaseName = sCurName & "_NA_" & Format(Timestamp, "YYYYmmdd")
+        End If
+        Let sNewFileName = sNewFileBaseName & sNewFileExtension
+
+    'Phase 2. Try to use file system naming convention meta-data
+    ElseIf oIsOldAccnFile.Test(FileName) Then
+        Set cRefs = oIsOldAccnFile.Execute(FileName)
+        
         For Each oRef In cRefs
             Set MetaD = oRef.SubMatches
             Exit For
