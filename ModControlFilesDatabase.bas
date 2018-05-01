@@ -615,6 +615,7 @@ Public Function RenamePDFs(Optional ByVal LogLevel As Integer)
     
     Dim cSourcePaths As Collection, vSourcePath As Variant
     Dim cSearchDirs As Collection, vSearchDir As Variant
+    Dim cScanFiles As Collection, vScanFile As Variant
     
     Dim sDirPrefix As String
     Dim I As Integer
@@ -655,8 +656,19 @@ Public Function RenamePDFs(Optional ByVal LogLevel As Integer)
 
     For Each vSearchDir In cSearchDirs
         sPattern = sDrive & vSearchDir & "\*.PDF"
+        
+        Set cScanFiles = New Collection
         Let sFileName = Dir(sPattern, vbNormal)
         Do While Len(sFileName) > 0
+            cScanFiles.Add sFileName
+            Let sFileName = Dir
+        Loop
+        
+        For Each vScanFile In cScanFiles
+            DoEvents
+            
+            Let sFileName = CStr(vScanFile)
+            
             Set oAccnScan = New cAccnScan: With oAccnScan
                 .Url = sDrive & vSearchDir & "\" & sFileName
             End With
@@ -755,8 +767,8 @@ Public Function RenamePDFs(Optional ByVal LogLevel As Integer)
                     Debug.Print "MISC UNPROCESSED: ", sFileName
                 End If
             End If
-            Let sFileName = Dir
-        Loop
+
+        Next vScanFile
     Next vSearchDir
     
     If LogLevel = 0 Or LogLevel > 0 Then
