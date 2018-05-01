@@ -90,19 +90,15 @@ Private Sub FilterNamesDialog(Optional ByVal Path As String)
         'oAccnScan.InsertIntoAccessions
         boxProgress.Width = boxProgress.Width + 10
         On Error GoTo 0
-        
-        GoTo ContinueLoop
-
-HandleInsertError:
-        'NOOP
-        On Error GoTo 0
-
-ContinueLoop:
-
+    
     Next sItem
     boxProgress.Visible = False
     Me.Requery
 
+HandleInsertError:
+    'NOOP
+    Resume Next
+    
 End Sub
 
 Private Sub cmdFilterNames_Click()
