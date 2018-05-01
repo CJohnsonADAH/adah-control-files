@@ -19,6 +19,83 @@ Public Const EX_ACCNSCAN_DUPLICATE = (vbObjectError + 253)
 
 Public Const EX_FILEALREADYEXISTS = 58
 Public Const EX_FILEPERMISSIONDENIED = 75
+Public Const EX_DUPLICATE_KEY_VALUE = 3022
+
+Public Const COLOR_ALERT As Long = &HFFFF           'Bright yellow
+Public Const COLOR_DISABLED As Long = &HC0C0C0      'Light grey
+Public Const COLOR_UNMARKED As Long = &HFFFFFF      'White
+Public Const COLOR_MARKEDERROR As Long = &HC0C0FF   'Light red
+
+Public Sub BubbleSortList(ByRef List As Variant)
+    Dim Swapped As Boolean
+    Dim vSwap As Variant
+    Dim I As Integer, J As Integer
+    
+    If IsArray(List) Or TypeName(List) = "Collection" Then
+        Do
+            Let Swapped = False
+            For I = LBound(List) To UBound(List) - 1
+                If List(I + 1) < List(I) Then
+                    Let vSwap = List(I)
+                    Let List(I) = List(I + 1)
+                    Let List(I + 1) = vSwap
+                    
+                    Let Swapped = True
+                End If
+            Next I
+        Loop Until Not Swapped
+    End If
+End Sub
+
+'**
+'* DebugDump: Utility Function mainly for use in the Immediate pane to more easily display a
+'* bunch of different kinds of objects and collections of objects in VBA
+'*
+'* @param Variant v The object to print out a representation of in the Immediate pane
+'**
+Sub DebugDump(v As Variant)
+    Dim vScalar As Variant
+    If IsArray(v) Or TypeName(v) = "Collection" Or TypeName(v) = "ISubMatches" Then
+        If IsArray(v) Then
+            Debug.Print TypeName(v), LBound(v), UBound(v)
+        Else
+            Debug.Print TypeName(v), v.Count
+        End If
+        
+        For Each vScalar In v
+            DebugDump (vScalar)
+        Next vScalar
+    ElseIf TypeName(v) = "Dictionary" Then
+        Debug.Print TypeName(v)
+        For Each vScalar In v.Keys
+            Debug.Print vScalar & ":"
+            DebugDump v.Item(vScalar)
+        Next vScalar
+    ElseIf TypeName(v) = "Nothing" Then
+        Debug.Print TypeName(v)
+    Else
+        Debug.Print TypeName(v), v
+    End If
+End Sub
+
+Public Function JoinCollection(delim As String, c As Collection)
+    Dim first As Boolean
+    Dim vItem As Variant
+    Dim sConjunction As String
+    
+    first = True
+    For Each vItem In c
+        If Not first Then
+            sConjunction = sConjunction & delim
+        End If
+        
+        sConjunction = sConjunction & vItem
+        
+        first = False
+    Next vItem
+    
+    JoinCollection = sConjunction
+End Function
 
 Public Function CreateGuidString()
     Dim guid As GUID_TYPE

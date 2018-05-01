@@ -390,57 +390,7 @@ Function NumberOfComments(CollectionNumber As String)
     NumberOfComments = cComments.Count
 End Function
 
-'**
-'* DebugDump: Utility Function mainly for use in the Immediate pane to more easily display a
-'* bunch of different kinds of objects and collections of objects in VBA
-'*
-'* @param Variant v The object to print out a representation of in the Immediate pane
-'**
-Sub DebugDump(v As Variant)
-    Dim vScalar As Variant
-    If IsArray(v) Or TypeName(v) = "Collection" Or TypeName(v) = "ISubMatches" Then
-        If IsArray(v) Then
-            Debug.Print TypeName(v), LBound(v), UBound(v)
-        Else
-            Debug.Print TypeName(v), v.Count
-        End If
-        
-        For Each vScalar In v
-            DebugDump (vScalar)
-        Next vScalar
-    ElseIf TypeName(v) = "Dictionary" Then
-        Debug.Print TypeName(v)
-        For Each vScalar In v.Keys
-            Debug.Print vScalar & ":"
-            DebugDump v.Item(vScalar)
-        Next vScalar
-    ElseIf TypeName(v) = "Nothing" Then
-        Debug.Print TypeName(v)
-    Else
-        Debug.Print TypeName(v), v
-    End If
-End Sub
-
-Function JoinCollection(delim As String, c As Collection)
-    Dim first As Boolean
-    Dim vItem As Variant
-    Dim sConjunction As String
-    
-    first = True
-    For Each vItem In c
-        If Not first Then
-            sConjunction = sConjunction & delim
-        End If
-        
-        sConjunction = sConjunction & vItem
-        
-        first = False
-    Next vItem
-    
-    JoinCollection = sConjunction
-End Function
-
-Function camelCaseSplitString(ByVal s As String) As Collection
+Public Function camelCaseSplitString(ByVal s As String) As Collection
     Dim isAlpha As New RegExp
     Dim isUpper As New RegExp
     Dim isLower As New RegExp
