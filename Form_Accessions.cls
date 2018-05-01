@@ -561,6 +561,7 @@ Private Sub FillOutFormFromAttachmentControls()
     Dim hasData As Boolean
     Dim cRefs As Variant
     Dim vAttachPath As Variant
+    Dim I As Integer
     
    'SOURCE CONTROL 1: Me!Scan, an Attachment field control
    If Me!Scan.AttachmentCount > 0 Then
