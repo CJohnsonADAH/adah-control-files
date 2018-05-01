@@ -113,3 +113,43 @@ Public Function CreateGuidString()
         End If
     End If
 End Function
+
+'Derived from code posted at https://stackoverflow.com/questions/16948215/exporting-ms-access-forms-and-class-modules-recursively-to-text-files
+'Modified to allow the user to set a desired path
+Public Sub ExportAllCode(Optional ByVal Path As String)
+
+    Dim c As VBComponent
+    Dim Sfx As String
+
+    Dim sDestinationFolder As String
+    Dim dlgDestinationFolder As FileDialog
+                    
+    Set dlgDestinationFolder = Application.FileDialog(msoFileDialogFolderPicker): With dlgDestinationFolder
+        .Title = "Export Destination Folder"
+        .InitialFileName = IIf(Len(Path) > 0, Path, CurrentProject.Path)
+    End With
+                
+    If dlgDestinationFolder.Show Then
+        Let sDestinationFolder = dlgDestinationFolder.SelectedItems(1)
+
+        For Each c In Application.VBE.VBProjects(1).VBComponents
+            Select Case c.Type
+                Case vbext_ct_ClassModule, vbext_ct_Document
+                    Sfx = ".cls"
+                Case vbext_ct_MSForm
+                    Sfx = ".frm"
+                Case vbext_ct_StdModule
+                    Sfx = ".bas"
+                Case Else
+                    Sfx = ""
+            End Select
+    
+            If Sfx <> "" Then
+                c.Export _
+                    FileName:=sDestinationFolder & "\" & _
+                    c.Name & Sfx
+            End If
+        Next c
+    End If
+    
+End Sub
