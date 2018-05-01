@@ -153,7 +153,7 @@ AttachToRecordTry:
     Let Halt = False
     If bWasNewRecord Then
         If Not Halt And Not IsNull(Me!AccnDate.value) Then
-            DoCmd.GoToRecord Record:=acNewRec
+            DoAdvanceToNextRecord
         Else
             Me!AccnDate.SetFocus
             Let Halt = True
@@ -176,7 +176,7 @@ AttachToRecordCatch:
             If Not Fixed Then
                 If ErrCode = EX_DUPLICATE_KEY_VALUE Then
                     Me.Undo
-                    DoCmd.SearchForRecord Record:=acFirst, WhereCondition:="ACCN='" & oAccnScan.ACCN = "'"
+                    DoAdvanceToNextRecord Record:=oAccnScan.ACCN
                     Let Fixed = True
                 End If
             End If
@@ -195,6 +195,15 @@ AttachToRecordFinally:
 
     Exit Sub
 
+End Sub
+
+Private Sub DoAdvanceToNextRecord(Optional ByVal Record As String)
+    Me.FilterOn = False
+    If Len(Record) > 0 Then
+        DoCmd.SearchForRecord Record:=acFirst, WhereCondition:="ACCN='" & Record & "'"
+    Else
+        DoCmd.GoToRecord Record:=acNewRec
+    End If
 End Sub
 
 Private Sub DoFillOutAndSave(ByRef Scan As cAccnScan, ByRef OK As Boolean, ByRef ErrCode As Long)
