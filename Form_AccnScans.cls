@@ -16,6 +16,7 @@ Option Compare Database
 Option Explicit
 
 Private oView As Object
+Private oScan As cAccnScan
 Private bInsertedAccession As Boolean
 
 Private Property Get View() As Object
@@ -28,6 +29,35 @@ Private Property Get View() As Object
 
     Set View = oView
 End Property
+
+Public Property Get Scan() As Object
+    If oScan Is Nothing Then
+        Set oScan = ScanFactory
+    End If
+    
+    Set Scan = oScan
+End Property
+
+Private Function ScanFactory() As Object
+    Dim o As New cAccnScan: With o
+        If Nz(Me!ID.Value) Then
+            Let .ID = Nz(Me!ID.Value)
+        Else
+            Let .FileName = Nz(Me!FileName.Value)
+            Let .FilePath = Nz(Me!FilePath.Value)
+        End If
+    End With
+    
+    Set ScanFactory = o
+End Function
+
+Private Sub cmdConvertFileName_Click()
+    If Len(Scan.FileName) > 0 Then
+        View.Blank
+        Scan.ConvertFileName
+        View.ReloadPDFFromForm
+    End If
+End Sub
 
 Private Sub cmdInsert_Click()
     Dim dlgSourceFile As FileDialog
@@ -77,7 +107,7 @@ Private Sub cmdInsert_Click()
             Let asFileFolderSlugs(1) = oAccnScan.FileFolderSlug(Old:=True)
             Let asFileFolderSlugs(2) = oAccnScan.FileFolderSlug(Old:=False)
             
-            Let View.ACCN = Nz(Me!ACCN.value)
+            Let View.ACCN = Nz(Me!ACCN.Value)
             
             Let oAccnScan.NewRecord = Me.NewRecord
             View.AttachToRecord Location:=oAccnScan
@@ -98,7 +128,7 @@ Private Sub Form_AfterUpdate()
         DoEvents
         DoCmd.OpenForm FormName:="Accessions"
         Forms!Accessions.FilterOn = False
-        DoCmd.SearchForRecord ObjectType:=acDataForm, ObjectName:="Accessions", Record:=acFirst, WhereCondition:="ACCN='" & Me!ACCN.value & "'"
+        DoCmd.SearchForRecord ObjectType:=acDataForm, ObjectName:="Accessions", Record:=acFirst, WhereCondition:="ACCN='" & Me!ACCN.Value & "'"
         Forms!Accessions.RefreshAttachmentView
     End If
     Let bInsertedAccession = False
@@ -106,28 +136,28 @@ End Sub
 
 Private Sub Form_BeforeUpdate(Cancel As Integer)
     Dim N As String
-    Dim Scan As cAccnScan
+    Dim myScan As cAccnScan
     
-    If Len(Nz(Me!ACCN.value)) > 0 Then
+    If Len(Nz(Me!ACCN.Value)) > 0 Then
         'Check to see if we have anything in the Accessions table already
-        Let N = DCount("ACCN", "Accessions", "ACCN='" & Nz(Me!ACCN.value) & "'")
+        Let N = DCount("ACCN", "Accessions", "ACCN='" & Nz(Me!ACCN.Value) & "'")
         If (N = 0) And hasAccnSheet Then
             Dim YesNo As Long
-            Let YesNo = MsgBox("Create an Accession record for " & Me!ACCN.value & "?", Buttons:=vbYesNo)
+            Let YesNo = MsgBox("Create an Accession record for " & Me!ACCN.Value & "?", Buttons:=vbYesNo)
             If YesNo = 6 Then '6 = Yes button, 7 = No button
             
-                Set Scan = New cAccnScan: With Scan
-                    .FileName = Nz(Me!FileName.value)
-                    .FilePath = Nz(Me!FilePath.value)
-                    .ACCN = Nz(Me!ACCN.value)
-                    .Timestamp = Nz(Me!Timestamp.value)
+                Set myScan = New cAccnScan: With myScan
+                    .FileName = Nz(Me!FileName.Value)
+                    .FilePath = Nz(Me!FilePath.Value)
+                    .ACCN = Nz(Me!ACCN.Value)
+                    .Timestamp = Nz(Me!Timestamp.Value)
                     .SheetType = "ACCN"
-                    If Not IsNull(Me!CabinetFolder.value) Then
-                        .CabinetFolder = Me!CabinetFolder.value
+                    If Not IsNull(Me!CabinetFolder.Value) Then
+                        .CabinetFolder = Me!CabinetFolder.Value
                     End If
                 End With
                 
-                Scan.InsertIntoAccessions
+                myScan.InsertIntoAccessions
                 Let Me!ACCN.BackColor = COLOR_UNMARKED
                 Let bInsertedAccession = True
                 
@@ -143,7 +173,7 @@ Private Sub Form_BeforeUpdate(Cancel As Integer)
 End Sub
 
 Private Function hasAccnSheet()
-    Let hasAccnSheet = (Len(Nz(Me!SheetType)) = 0 Or Nz(Me!SheetType.value) = "ACCN")
+    Let hasAccnSheet = (Len(Nz(Me!SheetType)) = 0 Or Nz(Me!SheetType.Value) = "ACCN")
 End Function
 
 Private Sub Form_Close()
@@ -155,8 +185,10 @@ Private Sub Form_Close()
 End Sub
 
 Private Sub Form_Current()
-    Let View.ACCN = Nz(Me!ACCN.value)
+    Let View.ACCN = Nz(Me!ACCN.Value)
     View.ReloadPDFFromForm
+    
+    Set oScan = ScanFactory
     
     Me!ACCN.BackColor = RGB(255, 255, 255)
     
@@ -168,13 +200,13 @@ Private Sub Form_Open(Cancel As Integer)
 End Sub
 
 Private Sub lblACCN_Click()
-    If Len(Nz(ACCN.value)) > 0 Then
-        DoCmd.OpenForm FormName:="Accessions", WindowMode:=acWindowNormal, WhereCondition:="ACCN='" & ACCN.value & "'"
+    If Len(Nz(ACCN.Value)) > 0 Then
+        DoCmd.OpenForm FormName:="Accessions", WindowMode:=acWindowNormal, WhereCondition:="ACCN='" & ACCN.Value & "'"
     End If
 End Sub
 
 Private Function HasACCN() As Boolean
-    Let HasACCN = (Len(Nz(ACCN.value)) > 0)
+    Let HasACCN = (Len(Nz(ACCN.Value)) > 0)
 End Function
 
 Private Sub RefreshLabelLinks()

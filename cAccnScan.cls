@@ -11,6 +11,7 @@ Option Compare Database
 Option Explicit
 
 Private bNewRecord As Boolean
+Private iID As Long
 Private sDrive As String
 Private sFilePath As String
 Private sFileName As String
@@ -24,6 +25,20 @@ Private dSheetTypeSlugs As Dictionary
 Private dFileSystemMetadata As Dictionary
 Private dDatabaseMetadata As Dictionary
 
+'**
+'* Get cAccnScan::ID:
+'**
+Public Property Get ID() As Long
+    Let ID = iID
+End Property
+
+'**
+'* Let cAccnScan::ID:
+'**
+Public Property Let ID(L As Long)
+    Let iID = L
+    RetrieveFromDatabase Field:="ID", Value:=L
+End Property
 
 '**
 '* Get cAccnScan::FilePath: get the filesystem path of an AccnScan file
@@ -109,8 +124,8 @@ Public Property Get CabinetFolder() As Long
     End If
 End Property
 
-Public Property Let CabinetFolder(l As Long)
-    Let iCabinetFolder = l
+Public Property Let CabinetFolder(L As Long)
+    Let iCabinetFolder = L
     Let bCabinetFolderSet = True
     ResetFolderWithID
 End Property
@@ -170,7 +185,7 @@ End Function
 Public Function FileFolderSlug(Optional ByVal Old As Variant) As String
     Dim myPath(1 To 2) As String
     
-    Dim I As Integer
+    Dim i As Integer
     Dim J As Integer
     
     Dim sSlug As String
@@ -189,10 +204,10 @@ Public Function FileFolderSlug(Optional ByVal Old As Variant) As String
     Let myPath(1) = OldPath
     Let myPath(2) = FilePath
     
-    Let I = LBound(myPath)
-    Do Until Len(sSlug) > 0 Or I > UBound(myPath)
-        If UsePath(I) Then
-            Let asFolders = Split(myPath(I), "\")
+    Let i = LBound(myPath)
+    Do Until Len(sSlug) > 0 Or i > UBound(myPath)
+        If UsePath(i) Then
+            Let asFolders = Split(myPath(i), "\")
             
             Let J = UBound(asFolders)
             Do Until (Len(sSlug) > 0) Or (J < LBound(asFolders))
@@ -202,7 +217,7 @@ Public Function FileFolderSlug(Optional ByVal Old As Variant) As String
                 Let J = J - 1
             Loop
         End If
-        Let I = I + 1
+        Let i = i + 1
     Loop
     
     Let FileFolderSlug = sSlug
@@ -212,7 +227,7 @@ Public Property Let Url(sUrl As String)
     Dim aPath() As String
     Dim sPath As String
     Dim iStartPath As Integer
-    Dim I As Integer
+    Dim i As Integer
     
     aPath = Split(sUrl, "\")
     Let FileName = aPath(UBound(aPath))
@@ -230,13 +245,13 @@ Public Property Let Url(sUrl As String)
         Let iStartPath = iStartPath + 4
     End If
     
-    For I = iStartPath To UBound(aPath) - 1
-        If Len(aPath(I)) = 0 Then
+    For i = iStartPath To UBound(aPath) - 1
+        If Len(aPath(i)) = 0 Then
             'NOOP
         Else
-            sPath = sPath & "\" & aPath(I)
+            sPath = sPath & "\" & aPath(i)
         End If
-    Next I
+    Next i
     Let FilePath = sPath
 End Property
 
@@ -431,7 +446,7 @@ Public Function Creator() As String
     Dim cWords As Collection
     Dim sSlug As String
     Dim aPath() As String
-    Dim I As Integer
+    Dim i As Integer
     
     Set oRefs = MetadataFromFileName
     
@@ -440,18 +455,18 @@ Public Function Creator() As String
         Creator = oRefs(0)
     Else
         Let aPath = Split(FilePath, "\")
-        Let I = UBound(aPath)
+        Let i = UBound(aPath)
         
-        If I >= LBound(aPath) Then
-            If RegexMatch(aPath(I), "^Contr?olFiles?$") Then
-                Let I = I - 1
+        If i >= LBound(aPath) Then
+            If RegexMatch(aPath(i), "^Contr?olFiles?$") Then
+                Let i = i - 1
             End If
         End If
         
-        If I >= LBound(aPath) Then
-            Let Creator = aPath(I)
+        If i >= LBound(aPath) Then
+            Let Creator = aPath(i)
             
-            Let sSlug = aPath(I)
+            Let sSlug = aPath(i)
             Set cWords = camelCaseSplitString(sSlug)
             
             If cWords.Count > 0 Then
@@ -560,19 +575,20 @@ Public Sub InsertIntoAccnScans(Optional ByRef Controller As Form)
     Else
     
         With Controller
-            .Controls("ACCN").value = IIf(Len(ACCN) > 0, Trim(UCase(ACCN)), Null)
-            .Controls("FileName").value = FileName
-            .Controls("FilePath").value = FilePath
-            .Controls("SheetType").value = SheetType
-            .Controls("Timestamp").value = Timestamp
-            .Controls("CabinetFolder").value = CabinetFolder
-            .Controls("OldPath").value = OldPath
-            .Controls("FileNameToBeFixed").value = FileNameToBeFixed Or (NewRecord And IsCopierScan)
+            .Controls("ACCN").Value = IIf(Len(ACCN) > 0, Trim(UCase(ACCN)), Null)
+            .Controls("FileName").Value = FileName
+            .Controls("FilePath").Value = FilePath
+            .Controls("SheetType").Value = SheetType
+            If Timestamp <> 0 Then
+                .Controls("Timestamp").Value = Timestamp
+            End If
+            .Controls("CabinetFolder").Value = CabinetFolder
+            .Controls("OldPath").Value = OldPath
+            .Controls("FileNameToBeFixed").Value = FileNameToBeFixed Or (NewRecord And IsCopierScan)
         End With
         
     End If
 End Sub
-
 
 Public Sub ConvertFileName(Optional ByRef Result As String)
     Dim oIsOldAccnFile As New RegExp
@@ -620,6 +636,19 @@ Public Sub ConvertFileName(Optional ByRef Result As String)
         End If
         Let sNewFileName = sNewFileBaseName & sNewFileExtension
 
+    ElseIf UCase(SheetType) = "CORRESPONDENCE" Then
+    
+        Let sCurName = GetCurNameFromCreatorCode(Creator)
+        Let sNewFileExtension = ".PDF"
+        
+        Select Case SheetType
+        Case "", "ACCN":
+            Let sNewFileBaseName = sCurName & Replace(ACCN, ".", "")
+        Case Else:
+            Let sNewFileBaseName = sCurName & SheetTypeSlug & GetDateSlug(Timestamp)
+        End Select
+        Let sNewFileName = sNewFileBaseName & sNewFileExtension
+        
     'Phase 2. Try to use file system naming convention meta-data
     ElseIf oIsOldAccnFile.Test(FileName) Then
         Set cRefs = oIsOldAccnFile.Execute(FileName)
@@ -634,6 +663,7 @@ Public Sub ConvertFileName(Optional ByRef Result As String)
         Let sNewFileName = sNewFileBaseName & sNewFileExtension
     
     ElseIf reIsCopierScan.Test(FileName) Then
+        
         Let sCurName = GetCurNameFromCreatorCode(Creator)
         Let sNewFileExtension = ".PDF"
         
@@ -675,7 +705,7 @@ End Sub
 
 Public Sub FileSystemConvertFileName(ByVal NewFileName As String, ByVal BaseName As String, ByVal Extension As String, ByRef Result As String)
     Dim sOldFull As String, sNewFull As String
-    Dim I As Integer, sOldNew As String
+    Dim i As Integer, sOldNew As String
 
     Let Result = ""
 
@@ -707,8 +737,8 @@ CatchRename:
     Let sOldNew = NewFileName
     If Err.Number = EX_FILEALREADYEXISTS Then
         Debug.Print "DID/COULD NOT RENAME: ", Url, "TRY AGAIN..."
-        Let I = I + 1
-        Let NewFileName = BaseName & "-" & Format(I, "00") & Extension
+        Let i = i + 1
+        Let NewFileName = BaseName & "-" & Format(i, "00") & Extension
     ElseIf Err.Number = EX_FILEPERMISSIONDENIED Then
         'NOOP
     End If
@@ -760,10 +790,10 @@ Public Function isOnDefaultDrive() As Boolean
     Set FO(2) = FSO.GetFolder(getDefaultDrive & "\")
     
     'We need to account for the possibility of mapped network drives
-    Dim I As Integer
-    For I = 1 To 2
-        Let driveNames(I) = IIf(Len(FO(I).Drive.ShareName) > 0, FO(I).Drive.ShareName, FO(I).Drive.Path)
-    Next I
+    Dim i As Integer
+    For i = 1 To 2
+        Let driveNames(i) = IIf(Len(FO(i).Drive.ShareName) > 0, FO(i).Drive.ShareName, FO(i).Drive.Path)
+    Next i
     
     Let isOnDefaultDrive = (driveNames(1) = driveNames(2))
 End Function
@@ -808,7 +838,7 @@ Private Function retrieveScanFilePath()
     Dim vScanDir As Variant
     Dim cScanDirs As New Collection
     Dim sDirPrefix As String
-    Dim I As Integer
+    Dim i As Integer
     
     cScanDirs.Add "\AgencyState"
     cScanDirs.Add "\AgencyLocal"
@@ -870,6 +900,35 @@ Public Function GetSlugFromSheetType(SheetType As String) As String
         End If
     Next vType
 End Function
+
+Private Sub RetrieveFromDatabase(ByVal Field As String, ByVal Value As Variant)
+    Dim Rs As DAO.Recordset
+    Dim Qy As DAO.QueryDef
+    Dim v As Variant
+    
+    Set Qy = CurrentDb.CreateQueryDef( _
+        Name:="", SQLText:="SELECT * FROM [AccnScans] " _
+        & "WHERE [" & Field & "]=[paramToMatch]" _
+    )
+    Let Qy.Parameters("paramToMatch") = Value
+    
+    Set Rs = Qy.OpenRecordset
+    If Not Rs.EOF Then
+        Let FilePath = Nz(Rs!FilePath.Value)
+        Let FileName = Nz(Rs!FileName.Value)
+        Let OldPath = Nz(Rs!OldPath.Value)
+        Let ACCN = Nz(Rs!ACCN.Value)
+        Let SheetType = Nz(Rs!SheetType.Value)
+        Let Timestamp = Nz(Rs!Timestamp.Value)
+        Let CabinetFolder = Nz(Rs!CabinetFolder.Value)
+        Let FileNameToBeFixed = Nz(Rs!FileNameToBeFixed.Value)
+    End If
+    Rs.Close
+    
+    Set Rs = Nothing
+    Set Qy = Nothing
+    
+End Sub
 
 Private Sub Class_Initialize()
     Set dSheetTypeSlugs = New Dictionary: With dSheetTypeSlugs
