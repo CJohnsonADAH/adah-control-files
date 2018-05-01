@@ -206,9 +206,9 @@ Private Sub FillCurNames()
     
     aScanDir(1) = "State"
     'aScanDir(2) = "Local"
-    For i = 1 To 1
+    For I = 1 To 1
         sPattern = "*_*"
-        sDirPrefix = "\CollectionsManagement\AgencyFiles\" & aScanDir(i) & "\"
+        sDirPrefix = "\CollectionsManagement\AgencyFiles\" & aScanDir(I) & "\"
             
         f = Dir(sDrive & sDirPrefix & sPattern, vbDirectory)
         Do While Len(f) > 0
@@ -221,7 +221,7 @@ Private Sub FillCurNames()
             End If
             f = Dir()
         Loop
-    Next i
+    Next I
 
     Dim dCurNamesNoted As Dictionary
     Set dCurNamesNoted = CurNamesInCreators
