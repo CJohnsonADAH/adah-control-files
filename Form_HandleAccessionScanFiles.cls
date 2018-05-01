@@ -77,26 +77,14 @@ Private Sub FilterNamesDialog(Optional ByVal Path As String)
         Exit Sub
     End If
     
-    Dim origPath As String
-    Dim origFileName As String
-    
     boxProgress.Width = 10
     For Each sItem In f.SelectedItems
         boxProgress.Visible = True
         'Should contain a full path, e.g. "S:\CollectionsManagement\AgencyFiles\Local\03_MontgomeryCounty\ControlFiles\03_1994_0451_19940912.PDF"
-        Set oAccnScan = New cAccnScan
-        oAccnScan.Url = sItem
-        
-        'Save old values before updating
-        origPath = oAccnScan.Drive & oAccnScan.FilePath
-        origFileName = oAccnScan.FileName
-        
-        oAccnScan.ForceCorrectFileName
-        
-        Debug.Print "OLD: ", origPath, origFileName
-        Debug.Print "NEW: ", origPath, oAccnScan.FileName
-        
-        Name origPath & "\" & origFileName As origPath & "\" & oAccnScan.FileName
+        Set oAccnScan = New cAccnScan: With oAccnScan
+            .Url = sItem
+        End With
+        oAccnScan.ConvertFileName
         
         'On Error GoTo HandleInsertError
         'oAccnScan.InsertIntoAccessions
