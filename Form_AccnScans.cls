@@ -108,7 +108,7 @@ Private Sub Form_BeforeUpdate(Cancel As Integer)
     Dim N As String
     Dim Scan As cAccnScan
     
-    If Me.NewRecord And Len(Nz(Me!ACCN.value)) > 0 Then
+    If Len(Nz(Me!ACCN.value)) > 0 Then
         'Check to see if we have anything in the Accessions table already
         Let N = DCount("ACCN", "Accessions", "ACCN='" & Nz(Me!ACCN.value) & "'")
         If (N = 0) And hasAccnSheet Then
