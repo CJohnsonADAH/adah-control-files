@@ -38,15 +38,15 @@ Private Property Get AccnScanListView() As cAccnScanListView
         Set oAccnScanListView.BrowserControl = Me!PreviewBrowser
         Set oAccnScanListView.ListControl = Me!lstAccnScans
         
-        If Not IsNull(Me!ACCN.value) Then
-            Let oAccnScanListView.ACCN = Me!ACCN.value
+        If Not IsNull(Me!ACCN.Value) Then
+            Let oAccnScanListView.ACCN = Me!ACCN.Value
         Else
             Let oAccnScanListView.ACCN = ""
         End If
     End If
     
-    If Not IsNull(Me!ACCN.value) Then
-        Let oAccnScanListView.ACCN = Me!ACCN.value
+    If Not IsNull(Me!ACCN.Value) Then
+        Let oAccnScanListView.ACCN = Me!ACCN.Value
     Else
         Let oAccnScanListView.ACCN = ""
     End If
@@ -59,9 +59,9 @@ Private Sub Update_txtCreatorName_from(Text As String, Optional NewRecord As Boo
     Dim oAgency As New cAgency
     Let oAgency.CreatorCode = Text
 
-    Me!txtCreatorName.value = oAgency.Name(Short:=False)
+    Me!txtCreatorName.Value = oAgency.Name(Short:=False)
     
-    If Len(Me!txtCreatorName.value) > 0 Or NewRecord Then
+    If Len(Me!txtCreatorName.Value) > 0 Or NewRecord Then
         Me!txtCreatorName.BackColor = COLOR_DISABLED
     Else
         Me!txtCreatorName.BackColor = COLOR_ALERT
@@ -135,8 +135,8 @@ Private Sub DoAttachScanFile(ByVal File As String, ByRef Halt As Boolean, ByRef 
     End If
     
     'If we have ACCN on the form, use it
-    If Not IsNull(Me!ACCN.value) Then
-        Let AccnScanListView.ACCN = Me!ACCN.value
+    If Not IsNull(Me!ACCN.Value) Then
+        Let AccnScanListView.ACCN = Me!ACCN.Value
     
     'If we don't have ACCN on the form, try to get it from the file meta-data
     Else
@@ -148,15 +148,15 @@ Private Sub DoAttachScanFile(ByVal File As String, ByRef Halt As Boolean, ByRef 
     
 AttachToRecordTry:
     On Error GoTo AttachToRecordCatch
-    If oAccnScan.Timestamp = 0 And Not IsNull(Me!AccnDate.value) Then
-        Let oAccnScan.Timestamp = Me!AccnDate.value
+    If oAccnScan.Timestamp = 0 And Not IsNull(Me!AccnDate.Value) Then
+        Let oAccnScan.Timestamp = Me!AccnDate.Value
     End If
     AccnScanListView.AttachToRecord Location:=oAccnScan, NewRecord:=bWasNewRecord
     On Error GoTo 0
     
     Let Halt = False
     If bWasNewRecord Then
-        If Not Halt And Not IsNull(Me!AccnDate.value) Then
+        If Not Halt And Not IsNull(Me!AccnDate.Value) Then
             DoAdvanceToNextRecord
         Else
             Me!AccnDate.SetFocus
@@ -217,13 +217,14 @@ Private Sub DoFillOutAndSave(ByRef Scan As cAccnScan, ByRef OK As Boolean, ByRef
     Dim rDetails As AccessionDetails
     
     FillOutFormFromAttachment Scan.Url
-    If Len(Nz(Me!ACCN.value)) = 0 Then
+    If Len(Nz(Me!ACCN.Value)) = 0 Then
         Let sDetails = InputBox("Accession Number")
         Let rDetails = GetDetails(File:=Scan.Url, s:=sDetails)
     Else
-        Let rDetails.ACCN = Nz(Me!ACCN.value)
-        Let rDetails.Creator = Nz(Me!Creator.value)
-        Let rDetails.Date = Me!AccnDate.value
+        Let rDetails = GetDetails(File:=Scan.Url, s:=Nz(Me!ACCN.Value))
+        Let rDetails.ACCN = Nz(Me!ACCN.Value)
+        Let rDetails.Creator = Nz(Me!Creator.Value)
+        Let rDetails.Date = Me!AccnDate.Value
     End If
 
     'Innocent until proven guilty
@@ -235,19 +236,19 @@ Private Sub DoFillOutAndSave(ByRef Scan As cAccnScan, ByRef OK As Boolean, ByRef
             Let rDetails.Creator = InputBox("Creator")
         End If
         
-        Let Me!ACCN.value = rDetails.ACCN
-        Let Me!Creator.value = rDetails.Creator
+        Let Me!ACCN.Value = rDetails.ACCN
+        Let Me!Creator.Value = rDetails.Creator
                         
         If rDetails.Date > 0 Then
-            Let Me!AccnDate.value = rDetails.Date
+            Let Me!AccnDate.Value = rDetails.Date
         End If
 
-        Let Me!AddedToDatabaseBy.value = getUserName
-        Let Me!AddedToDatabaseOn.value = Now
+        Let Me!AddedToDatabaseBy.Value = getUserName
+        Let Me!AddedToDatabaseOn.Value = Now
         
-        Let Me!CabinetFolder.value = Scan.FileFolder
-        If Len(Nz(Me!CabinetFolder.value)) = 0 Then
-            Let Me!CabinetFolder.value = sLastCabinetFolderLabel
+        Let Me!CabinetFolder.Value = Scan.FileFolder
+        If Len(Nz(Me!CabinetFolder.Value)) = 0 Then
+            Let Me!CabinetFolder.Value = sLastCabinetFolderLabel
         End If
         
         On Error GoTo cmdSaveRecordCatch
@@ -344,9 +345,9 @@ Private Sub cmbCreatorFilter_Change()
 End Sub
 
 Private Sub cmdCreatorFilter_Click()
-    If Not IsNull(cmbCreatorFilter.value) Then
-        If cmbCreatorFilter.value <> "-" Then
-            Me.Filter = "Creator = '" & cmbCreatorFilter.value & "'"
+    If Not IsNull(cmbCreatorFilter.Value) Then
+        If cmbCreatorFilter.Value <> "-" Then
+            Me.Filter = "Creator = '" & cmbCreatorFilter.Value & "'"
             Me.FilterOn = True
         Else
             Me.FilterOn = False
@@ -359,7 +360,7 @@ End Sub
 Private Sub cmdToDo_Click()
     Me.Filter = "(SeriesTitle IS NULL) OR (LEN(SeriesTitle) = 0)"
     Me.FilterOn = True
-    Me!cmbCreatorFilter.value = "-"
+    Me!cmbCreatorFilter.Value = "-"
 End Sub
 
 Private Sub cmdUnfilledCreators_Click()
@@ -368,8 +369,8 @@ Private Sub cmdUnfilledCreators_Click()
 End Sub
 
 Private Sub cmdDeleteScan_Click()
-    If Not IsNull(Me!ACCN.value) Then
-        Let AccnScanListView.ACCN = Me!ACCN.value
+    If Not IsNull(Me!ACCN.Value) Then
+        Let AccnScanListView.ACCN = Me!ACCN.Value
     Else
         Let AccnScanListView.ACCN = ""
     End If
@@ -386,8 +387,8 @@ Private Sub Creator_Change()
 End Sub
 
 Private Sub Form_AfterUpdate()
-    If Len(Nz(CabinetFolder.value)) > 0 Then
-        Let sLastCabinetFolderLabel = Nz(CabinetFolder.value)
+    If Len(Nz(CabinetFolder.Value)) > 0 Then
+        Let sLastCabinetFolderLabel = Nz(CabinetFolder.Value)
         Let sLastCabinetFolderPath = Nz(CabinetFolder.Column(3))
     End If
 End Sub
@@ -398,10 +399,10 @@ Private Sub Form_Current()
 
     Dim sCreator As String
     
-    If IsNull(Me!Creator.value) Then
+    If IsNull(Me!Creator.Value) Then
         sCreator = ""
     Else
-        sCreator = Me!Creator.value
+        sCreator = Me!Creator.Value
     End If
     Update_txtCreatorName_from sCreator, Me.NewRecord
     
@@ -534,14 +535,14 @@ Private Function FillOutFormFromAttachment(ByVal AttachPath As String) As Boolea
     Set cRefs = regexpIsAccnScanFile.Execute(oAccnScan.FileName)
     For Each oRef In cRefs
         hasData = True
-        Me!ACCN.value = oRef.SubMatches(1) & "." & oRef.SubMatches(2)
-        Me!AccnDate.value = DateSerial(Val(oRef.SubMatches(3)), Val(oRef.SubMatches(4)), Val(oRef.SubMatches(5)))
-        Me!Creator.value = oRef.SubMatches(0)
+        Me!ACCN.Value = oRef.SubMatches(1) & "." & oRef.SubMatches(2)
+        Me!AccnDate.Value = DateSerial(Val(oRef.SubMatches(3)), Val(oRef.SubMatches(4)), Val(oRef.SubMatches(5)))
+        Me!Creator.Value = oRef.SubMatches(0)
     Next oRef
     
     If hasData Then
-        Me!AddedToDatabaseBy.value = "cwj"
-        Me!AddedToDatabaseOn.value = Now
+        Me!AddedToDatabaseBy.Value = "cwj"
+        Me!AddedToDatabaseOn.Value = Now
     End If
 
     Let FillOutFormFromAttachment = hasData
