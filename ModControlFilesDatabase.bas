@@ -808,7 +808,7 @@ Public Function GetDateSlug(Timestamp As Variant, Optional ByVal OmitTime As Boo
         Let sDefault = CStr(Default)
     End If
     
-    If IsNull(Timestamp) Or Len(Nz(Timestamp)) = 0 Then
+    If IsNull(Timestamp) Or Len(Nz(Timestamp)) = 0 Or (IsDate(Timestamp) And Timestamp = 0) Then
         Let GetDateSlug = sDefault
     Else
         Let sDate = Format(Timestamp, "YYYYmmdd")
