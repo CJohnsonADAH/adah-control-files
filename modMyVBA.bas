@@ -55,7 +55,7 @@ End Sub
 '**
 Sub DebugDump(v As Variant)
     Dim vScalar As Variant
-    If IsArray(v) Or TypeName(v) = "Collection" Or TypeName(v) = "ISubMatches" Then
+    If IsArray(v) Or TypeName(v) = "Collection" Or TypeName(v) = "ISubMatches" Or TypeName(v) = "Fields" Then
         If IsArray(v) Then
             Debug.Print TypeName(v), LBound(v), UBound(v)
         Else

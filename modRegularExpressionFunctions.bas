@@ -119,3 +119,17 @@ Public Function RegexReplace(Value As Variant, Pattern As String, Replace As Str
 
 End Function
 
+Public Function RegexSplit(ByVal Text As String, ByVal Pattern As String, Optional ByVal MatchCase As Boolean, Optional ByVal DelimCapture As Boolean) As String()
+    Dim aWords() As String
+    Dim sReplace As String
+    
+    If DelimCapture Then
+        Let sReplace = Chr$(0) & "$1" & Chr$(0)
+    Else
+        Let sReplace = Chr$(0)
+    End If
+    
+    Let Text = RegexReplace(Value:=Text, Pattern:="(" & Pattern & ")", Replace:=sReplace, MatchCase:=MatchCase)
+    Let aWords = Split(Expression:=Text, Delimiter:=Chr$(0))
+    Let RegexSplit = aWords
+End Function
