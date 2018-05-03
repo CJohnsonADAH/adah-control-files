@@ -9,12 +9,17 @@ Attribute VB_PredeclaredId = False
 Attribute VB_Exposed = False
 Option Compare Database
 Option Explicit
+Implements IReceiver
+
+Private sInstanceId As String
 
 Private oBrowserControl As Object
 Private oListControl As Object
 Private oForm As Object
 Private sRecordTable As String
 Private sACCN As String
+
+Private UrlStack As Collection
 
 Public Property Get ACCN() As String
     ACCN = sACCN
@@ -86,10 +91,12 @@ End Property
 '*
 '**
 Public Sub Blank()
-    BrowserControl.Navigate2 "about:blank"
-    Do
-        DoEvents
-    Loop Until BrowserControl.ReadyState >= 3
+    If Not BrowserControl Is Nothing Then
+        BrowserControl.Navigate2 "about:blank"
+        Do
+            DoEvents
+        Loop Until BrowserControl.ReadyState >= 3
+    End If
 End Sub
 
 '**
@@ -98,7 +105,13 @@ End Sub
 '* @param String FileName
 '**
 Public Sub View(ByVal FileName As String)
+    On Error GoTo BorkBorkBork
     BrowserControl.Navigate2 FileName
+    Exit Sub
+    
+BorkBorkBork:
+    Blank
+    Resume Next
 End Sub
 
 Public Sub Fill(vAttachments As Variant)
@@ -287,13 +300,89 @@ End Sub
 
 Public Sub ReloadPDFFromList()
     Dim aFileParts() As String
-
-    ReloadPDF selectedFileName:=ListControl.Column(0), selectedFilePath:=ListControl.Column(1)
-
+    Dim vFileName As Variant, vFilePath As Variant
+    
+    If Not ListControl Is Nothing Then
+        Let vFileName = ListControl.Column(0)
+        Let vFilePath = ListControl.Column(1)
+        ReloadPDF selectedFileName:=Nz(vFileName), selectedFilePath:=Nz(vFilePath)
+    End If
 End Sub
 
 Public Sub ReloadPDFFromForm()
     If Not Form Is Nothing Then
-        ReloadPDF selectedFileName:=Nz(Form!FileName.value), selectedFilePath:=Nz(Form!FilePath.value)
+        ReloadPDF selectedFileName:=Nz(Form!FileName.Value), selectedFilePath:=Nz(Form!FilePath.Value)
     End If
 End Sub
+
+Public Sub HandleFileToBeRenamed(Parameters As Variant)
+    If Not BrowserControl Is Nothing Then
+        UrlStack.Add BrowserControl.LocationURL
+    End If
+    Blank
+End Sub
+
+Public Sub HandleFileHasBeenRenamed(Parameters As Variant)
+    Dim sFileURL As String
+    If Not BrowserControl Is Nothing Then
+        Let sFileURL = UrlStack.Item(UrlStack.Count)
+        UrlStack.Remove UrlStack.Count
+        'Was the file we were viewing renamed in this process?
+        If LCase(sFileURL) = LCase("file:" & Replace(Parameters("Source"), "\", "/")) Then
+            Let sFileURL = Parameters("Destination")
+        End If
+        View sFileURL
+    End If
+    
+    'If Not ListControl Is Nothing Then
+    '    ReloadPDFFromList
+    'ElseIf Not Form Is Nothing Then
+    '    ReloadPDFFromForm
+    'End If
+End Sub
+
+Public Sub Unload()
+    Set BrowserControl = Nothing
+    Set Form = Nothing
+
+    InitializePipesAndFilters
+    gPipes.RemoveAction Outlet:="FileToBeRenamed", Instance:=IReceiver_InstanceId
+    gPipes.RemoveAction Outlet:="FileHasBeenRenamed", Instance:=IReceiver_InstanceId
+End Sub
+
+Private Sub Class_Initialize()
+    Let sInstanceId = CreateGuidString
+    Set UrlStack = New Collection
+    
+    InitializePipesAndFilters
+    gPipes.AddAction Outlet:="FileToBeRenamed", Plug:=Me
+    gPipes.AddAction Outlet:="FileHasBeenRenamed", Plug:=Me
+End Sub
+
+Private Sub Class_Terminate()
+    Unload
+    Set UrlStack = Nothing
+End Sub
+
+Private Property Get IReceiver_ClassId() As String
+    Let IReceiver_ClassId = TypeName(Me)
+End Property
+
+Private Function IReceiver_Filter(Element As Variant, Parameters As Variant, Outlet As String) As Variant
+
+End Function
+
+Private Sub IReceiver_HandleAction(Parameters As Variant, Outlet As String)
+    Select Case Outlet
+    Case "FileToBeRenamed":
+        HandleFileToBeRenamed Parameters:=Parameters
+    Case "FileHasBeenRenamed":
+        HandleFileHasBeenRenamed Parameters:=Parameters
+    Case Else:
+        'NOOP
+    End Select
+End Sub
+
+Private Property Get IReceiver_InstanceId() As String
+    Let IReceiver_InstanceId = sInstanceId
+End Property

@@ -10,6 +10,8 @@ Attribute VB_Name = "ModControlFilesDatabase"
 Option Compare Binary
 Option Explicit
 
+Public gPipes As cPipeNetwork
+
 '**
 '* SecureCreatorRecord
 '*
@@ -841,3 +843,23 @@ Public Sub GetCabinetFoldersFromAccessions()
     Rs.Close
     Set Rs = Nothing
 End Sub
+
+Public Sub InitializePipesAndFilters()
+    If gPipes Is Nothing Then
+        Set gPipes = New cPipeNetwork
+    End If
+End Sub
+
+Public Sub FileRename(ByVal Source As String, ByVal Destination As String)
+    Dim FromTo As New Dictionary: With FromTo
+        .Add Key:="Source", Item:=Source
+        .Add Key:="Destination", Item:=Destination
+    End With
+    
+    InitializePipesAndFilters
+    
+    gPipes.DoAction Outlet:="FileToBeRenamed", Parameters:=FromTo
+    Name Source As Destination
+    gPipes.DoAction Outlet:="FileHasBeenRenamed", Parameters:=FromTo
+End Sub
+

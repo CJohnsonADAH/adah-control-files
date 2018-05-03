@@ -114,6 +114,28 @@ Public Function CreateGuidString()
     End If
 End Function
 
+Public Function TitleCase(ByVal Text As String)
+    Dim Word As String
+    Dim aWords() As String
+    Dim I As Integer
+    Dim sOutput As String
+    
+    Let aWords = RegexSplit(Text:=Text, Pattern:="\s", DelimCapture:=True)
+    Let I = LBound(aWords)
+    Do Until I > UBound(aWords)
+        Let Word = aWords(I)
+        If Left(Word, 1) >= "a" And Left(Word, 1) <= "z" Then
+            Let Word = UCase(Left(Word, 1)) & Right(Word, Len(Word) - 1)
+        End If
+        Let sOutput = sOutput & Word
+        
+        'Next!
+        Let I = I + 1
+    Loop
+    
+    Let TitleCase = sOutput
+End Function
+
 'Derived from code posted at https://stackoverflow.com/questions/16948215/exporting-ms-access-forms-and-class-modules-recursively-to-text-files
 'Modified to allow the user to set a desired path
 Public Sub ExportAllCode(Optional ByVal Path As String)
