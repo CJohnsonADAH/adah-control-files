@@ -821,7 +821,7 @@ Public Sub doCopyTo(NewPath As String)
     Let sOldFullPath = Url
     Let sNewFullPath = NewPath & "\" & FileName
     
-    Name sOldFullPath As sNewFullPath
+    FileRename Source:=sOldFullPath, Destination:=sNewFullPath
     
     Let Url = sNewFullPath
     Let OldPath = sOldFullPath
