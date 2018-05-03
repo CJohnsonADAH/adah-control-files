@@ -55,8 +55,10 @@ Private Function ScanFactory() As Object
 End Function
 
 Private Sub cmdConvertFileName_Click()
+    'Before we do anything, we should lock in pending database changes
+    Let Me.Dirty = False
+    
     If Len(Scan.FileName) > 0 Then
-        View.Blank
         Scan.ConvertFileName
         View.ReloadPDFFromForm
     End If
@@ -127,6 +129,8 @@ End Sub
 Private Sub Form_AfterUpdate()
     RefreshLabelLinks
     
+    Set oScan = ScanFactory
+    
     If bInsertedAccession Then
         DoEvents
         DoCmd.OpenForm FormName:="Accessions"
@@ -139,9 +143,18 @@ End Sub
 
 Private Sub Form_BeforeUpdate(Cancel As Integer)
     Dim N As String
+    Dim Accession As cAccession
     Dim myScan As cAccnScan
     
     If Len(Nz(Me!ACCN.Value)) > 0 Then
+        Set Accession = New cAccession: With Accession
+            Let .ACCN = Me!ACCN.Value
+        End With
+        
+        If Accession.ACCN <> Me!ACCN.Value Then
+            Let Me!ACCN.Value = Accession.ACCN
+        End If
+        
         'Check to see if we have anything in the Accessions table already
         Let N = DCount("ACCN", "Accessions", "ACCN='" & Nz(Me!ACCN.Value) & "'")
         If (N = 0) And hasAccnSheet Then
