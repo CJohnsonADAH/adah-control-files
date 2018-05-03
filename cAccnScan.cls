@@ -636,7 +636,7 @@ Public Sub ConvertFileName(Optional ByRef Result As String)
         End If
         Let sNewFileName = sNewFileBaseName & sNewFileExtension
 
-    ElseIf UCase(SheetType) = "CORRESPONDENCE" Then
+    ElseIf HasNamingConvention(SheetType) Then
     
         Let sCurName = GetCurNameFromCreatorCode(Creator)
         Let sNewFileExtension = ".PDF"
@@ -719,7 +719,7 @@ TryRename:
         
         If Me.Exists Then
             If (sOldFull <> sNewFull) Then
-                Name sOldFull As sNewFull
+                FileRename Source:=sOldFull, Destination:=sNewFull
                 
                 Let Result = NewFileName
                 Let FileName = NewFileName
@@ -741,6 +741,9 @@ CatchRename:
         Let NewFileName = BaseName & "-" & Format(I, "00") & Extension
     ElseIf Err.Number = EX_FILEPERMISSIONDENIED Then
         'NOOP
+        MsgBox "Denied"
+    ElseIf Err.Number < 0 Then
+        MsgBox Err.Source & ":" & Err.Number & ": " & Err.Description
     End If
     
     If sOldNew <> NewFileName Then Resume TryRename
@@ -930,9 +933,19 @@ Private Sub RetrieveFromDatabase(ByVal Field As String, ByVal Value As Variant)
     
 End Sub
 
+Public Function HasNamingConvention(Optional ByVal SheetType As String) As Boolean
+    If Len(SheetType) = 0 Then
+        Let SheetType = Me.SheetType
+    End If
+     
+    Let HasNamingConvention = dSheetTypeSlugs.Exists(TitleCase(SheetType))
+End Function
+
 Private Sub Class_Initialize()
     Set dSheetTypeSlugs = New Dictionary: With dSheetTypeSlugs
+        .Add Key:="Accn", Item:="Accn"
         .Add Key:="Correspondence", Item:="Corr"
+        .Add Key:="Destruction", Item:="Destruction"
         .Add Key:="Documentation", Item:="Doc"
         .Add Key:="Administrative", Item:="Admin"
         .Add Key:="Administration", Item:="Admin"
