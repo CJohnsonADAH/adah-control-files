@@ -357,6 +357,10 @@ Private Sub cmdCreatorFilter_Click()
     End If
 End Sub
 
+Private Sub cmdLookUpScan_Click()
+    DoLookUpScan
+End Sub
+
 Private Sub cmdToDo_Click()
     Me.Filter = "(SeriesTitle IS NULL) OR (LEN(SeriesTitle) = 0)"
     Me.FilterOn = True
