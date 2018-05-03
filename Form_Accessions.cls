@@ -97,6 +97,10 @@ Private Sub cmdAddScan_Click()
     
 End Sub
 
+Private Sub DoLookUpScan()
+    DoCmd.OpenForm FormName:="AccnScans", WhereCondition:="ID=" & Format(lstAccnScans.Column(3), "0")
+End Sub
+
 Private Sub DoAttachScanFile(ByVal File As String, ByRef Halt As Boolean, ByRef DestinationFolder As String)
     Dim dlgDestinationFolder As FileDialog
     Dim asFileFolderSlugs(1 To 2) As String
@@ -433,6 +437,10 @@ End Sub
 
 Private Sub lstAccnScans_AfterUpdate()
     AccnScanListView.ReloadPDFFromList
+End Sub
+
+Private Sub lstAccnScans_DblClick(Cancel As Integer)
+    DoLookUpScan
 End Sub
 
 Private Sub lstCurNames_DblClick(Cancel As Integer)
