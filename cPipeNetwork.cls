@@ -24,7 +24,7 @@ Private Function EventOf(ByVal Outlet As String, ByVal EventType As String)
     End Select
 End Function
 
-Public Sub AddAction(ByVal Outlet As String, Plug As Variant, ByVal Priority As Integer)
+Public Sub AddAction(ByVal Outlet As String, Plug As IReceiver, Optional ByVal Priority As Integer)
     AddEvent Outlet:=EventOf(Outlet, "Action"), Plug:=Plug, Priority:=Priority
 End Sub
 
@@ -39,6 +39,7 @@ Public Sub DoAction(ByVal Outlet As String, Optional Parameters As Variant)
     Dim Action As Variant
     Dim PriorityLevel As Variant
     Dim Plug As Variant
+    Dim rcvPlug As IReceiver
     Dim sEvent As String
     
     Let sEvent = EventOf(Outlet, "Action")
@@ -53,19 +54,22 @@ Public Sub DoAction(ByVal Outlet As String, Optional Parameters As Variant)
             Set dTier = dPipe.Item(PriorityLevel)
             For Each Action In dTier.Keys
                 Set Plug = dTier.Item(Action)
-                Call Plug.HandleAction(Parameters:=Parameters, Outlet:=Outlet)
+                If TypeOf Plug Is IReceiver Then
+                    Set rcvPlug = Plug
+                    Call rcvPlug.HandleAction(Parameters:=Parameters, Outlet:=Outlet)
+                End If
             Next Action
         Next PriorityLevel
     End If
 
 End Sub
 
-Public Sub AddFilter(ByVal Outlet As String, Plug As Variant, ByVal Priority As Integer)
+Public Sub AddFilter(ByVal Outlet As String, Plug As IReceiver, Optional ByVal Priority As Integer)
     AddEvent Outlet:=EventOf(Outlet, "Filter"), Plug:=Plug, Priority:=Priority
 End Sub
 
 Public Sub RemoveFilter(ByVal Outlet As String, Instance As Variant)
-    RemoveEvent Outlet:=EventOf(Outlet, "Filter"), Plug:=Plug, Priority:=Priority
+    RemoveEvent Outlet:=EventOf(Outlet, "Filter"), Instance:=Instance
 End Sub
 
 Public Function ApplyFilters(ByVal Outlet As String, InputElement As Variant, Optional Parameters As Variant)
@@ -98,7 +102,7 @@ Public Function ApplyFilters(ByVal Outlet As String, InputElement As Variant, Op
     Let ApplyFilters = OutputElement
 End Function
 
-Public Sub AddEvent(ByVal Outlet As String, Plug As Variant, ByVal Priority As Integer)
+Public Sub AddEvent(ByVal Outlet As String, Plug As IReceiver, Optional ByVal Priority As Integer)
     Dim dPipe As Dictionary
     Dim dTier As Dictionary
     Dim dLoc As Dictionary
@@ -132,20 +136,23 @@ Public Sub RemoveEvent(ByVal Outlet As String, Instance As Variant)
     Dim dTier As Dictionary
     Dim InstanceId As String
     
+    Dim Key As String
+    
     If IsObject(Instance) Then
         Let InstanceId = Instance.InstanceId
     Else
         Let InstanceId = Instance
     End If
     
-    If dFilters.Exists(InstanceId) Then
-        Set dLoc = dFilters.Item(InstanceId)
+    Let Key = Outlet & "," & InstanceId
+    If dFilters.Exists(Key) Then
+        Set dLoc = dFilters.Item(Key)
         
         Set dPipe = dPipelines.Item(dLoc.Item("Outlet"))
         Set dTier = dPipe.Item(dLoc.Item("Priority"))
         
         dTier.Remove Key:=InstanceId
-        dFilters.Remove Key:=InstanceId
+        dFilters.Remove Key:=Key
     End If
 End Sub
 
