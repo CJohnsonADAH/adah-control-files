@@ -12,8 +12,8 @@ Option Compare Database
 '
 '* @return Boolean True if the given string value matches the given Regex pattern, False otherwise
 '**
-Public Function RegexMatch(value As Variant, pattern As String, Optional ByVal MatchCase As Boolean) As Boolean
-    If IsNull(value) Then Exit Function
+Public Function RegexMatch(Value As Variant, Pattern As String, Optional ByVal MatchCase As Boolean) As Boolean
+    If IsNull(Value) Then Exit Function
     ' Using a static, we avoid re-creating the same regex object for every call '
     Static Regex As Object
     ' Initialise the Regex object '
@@ -30,9 +30,9 @@ Public Function RegexMatch(value As Variant, pattern As String, Optional ByVal M
     End With
 
     ' Update the regex pattern if it has changed since last time we were called '
-    If Regex.pattern <> pattern Then Regex.pattern = pattern
+    If Regex.Pattern <> Pattern Then Regex.Pattern = Pattern
     ' Test the value against the pattern '
-    RegexMatch = Regex.Test(value)
+    RegexMatch = Regex.Test(Value)
 End Function
 
 '**
@@ -47,13 +47,13 @@ End Function
 '*
 '* @return String The contents of the matching back-reference, or an empty string if there is no match.
 '**
-Public Function RegexComponent(value As Variant, pattern As String, Part As Integer, Optional ByVal MatchCase As Boolean) As String
+Public Function RegexComponent(Value As Variant, Pattern As String, Part As Integer, Optional ByVal MatchCase As Boolean) As String
     Dim cMatches As Variant
     Dim iMatch As Variant
     Dim iSubMatch As Variant
     Dim index As Integer
     
-    If IsNull(value) Then Exit Function
+    If IsNull(Value) Then Exit Function
     ' Using a static, we avoid re-creating the same regex object for every call '
     Static Regex As Object
     ' Initialise the Regex object '
@@ -70,12 +70,12 @@ Public Function RegexComponent(value As Variant, pattern As String, Part As Inte
     End With
     
     ' Update the regex pattern if it has changed since last time we were called '
-    If Regex.pattern <> pattern Then Regex.pattern = pattern
+    If Regex.Pattern <> Pattern Then Regex.Pattern = Pattern
     ' Test the value against the pattern '
-    Set cMatches = Regex.Execute(value)
+    Set cMatches = Regex.Execute(Value)
     For Each iMatch In cMatches
         If Part = 0 Then
-            RegexComponent = iMatch.value
+            RegexComponent = iMatch.Value
             Exit For
         Else
             For Each iSubMatch In iMatch.SubMatches
@@ -91,14 +91,14 @@ Public Function RegexComponent(value As Variant, pattern As String, Part As Inte
     
 End Function
 
-Public Function RegexReplace(value As Variant, pattern As String, Replace As String, Optional ByVal MatchCase As Boolean, Optional ByVal OnlyOne As Boolean) As String
+Public Function RegexReplace(Value As Variant, Pattern As String, Replace As String, Optional ByVal MatchCase As Boolean, Optional ByVal OnlyOne As Boolean) As String
     ' Using a static, we avoid re-creating the same regex object for every call '
     Static Regex As RegExp
     
     Dim hasMatch As Boolean
     Dim Result As String
     
-    If IsNull(value) Then Exit Function
+    If IsNull(Value) Then Exit Function
     
     ' Initialise the Regex object '
     If Regex Is Nothing Then
@@ -108,9 +108,9 @@ Public Function RegexReplace(value As Variant, pattern As String, Replace As Str
         End With
     End If
     
-    Result = CStr(value)
+    Result = CStr(Value)
     With Regex
-        .pattern = pattern
+        .Pattern = Pattern
         .Global = Not OnlyOne
         .IgnoreCase = Not MatchCase
     End With

@@ -127,11 +127,11 @@ Private Sub FillOutFromRecordSet(sqlWhere As String)
     
     If Not oRS.EOF Then
         Let iID = oRS!ID
-        Let sCreator = Nz(oRS!Creator.value)
-        Let sLabel = Nz(oRS!Label.value)
-        Let sFilePath = Nz(oRS!FilePath.value)
-        Let sFileSourcePath = Nz(oRS!FileSourcePath.value)
-        Let sFolderPath = Nz(oRS!FolderPath.value)
+        Let sCreator = Nz(oRS!Creator.Value)
+        Let sLabel = Nz(oRS!Label.Value)
+        Let sFilePath = Nz(oRS!FilePath.Value)
+        Let sFileSourcePath = Nz(oRS!FileSourcePath.Value)
+        Let sFolderPath = Nz(oRS!FolderPath.Value)
         Let sAddedToDatabaseBy = Nz(oRS!AddedToDatabaseBy)
         Let sAddedToDatabaseOn = Nz(oRS!AddedToDatabaseOn)
     Else

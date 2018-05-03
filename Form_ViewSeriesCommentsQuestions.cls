@@ -87,19 +87,19 @@ Private Sub Form_Current()
     'Is this a new Comment/Question? If so, were we provided any initial data to fill in?
     If Me.NewRecord Then
         If (Len(initCollectionNumber) > 0) Then
-            Me!CollectionNumber.value = initCollectionNumber
+            Me!CollectionNumber.Value = initCollectionNumber
             initCollectionNumber = ""
             
-            Me!CommentAuthor.value = getUserName
+            Me!CommentAuthor.Value = getUserName
         End If
         
         If (Len(initCommentType) > 0) Then
-            Me!CommentType.value = initCommentType
+            Me!CommentType.Value = initCommentType
             initCommentType = ""
         End If
         
         If (Len(initCommentText) > 0) Then
-            Me!CommentText.value = initCommentText
+            Me!CommentText.Value = initCommentText
             initCommentText = ""
         End If
     End If

@@ -264,7 +264,7 @@ Public Sub ReloadPDF(Optional ByVal selectedFileName As String, Optional ByVal s
     Else
         Set cAttachmentPaths = New Collection
         If TypeName(Form) = "Form_AccnScans" Then
-            If Len(Nz(Form!FileName.value)) > 0 Then
+            If Len(Nz(Form!FileName.Value)) > 0 Then
                 cAttachmentPaths.Add oSelection
             End If
         End If

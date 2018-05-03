@@ -90,10 +90,10 @@ Private Sub SecureRecord()
         Set Rs = CurrentDb.OpenRecordset("SELECT * FROM Creators WHERE CreatorCode = '" & Replace(CreatorCode, "'", "''") & "'")
         
         If Not (Rs.EOF) Then
-            Let AgencyName = Nz(Rs!AgencyName.value)
-            Let ShortName = Nz(Rs!Agency.value)
-            Let Division = Nz(Rs!Division.value)
-            Let Section = Nz(Rs!Section.value)
+            Let AgencyName = Nz(Rs!AgencyName.Value)
+            Let ShortName = Nz(Rs!Agency.Value)
+            Let Division = Nz(Rs!Division.Value)
+            Let Section = Nz(Rs!Section.Value)
             
         Else
             'FIXME: Pitch a fit somehow

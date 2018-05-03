@@ -66,17 +66,17 @@ Sub sDragDrop(ByVal Hwnd As Long, _
                             ByVal lParam As Long)
 
 Dim lngRet As Long, strTmp As String, intLen As Integer
-Dim lngCount As Long, i As Long, strOut As String
+Dim lngCount As Long, I As Long, strOut As String
 Const cMAX_SIZE = 50
     On Error Resume Next
     If Msg = WM_DROPFILES Then
         strTmp = String$(255, 0)
         lngCount = apiDragQueryFile(wParam, &HFFFFFFFF, strTmp, Len(strTmp))
-        For i = 0 To lngCount - 1
+        For I = 0 To lngCount - 1
             strTmp = String$(cMAX_SIZE, 0)
-            intLen = apiDragQueryFile(wParam, i, strTmp, cMAX_SIZE)
+            intLen = apiDragQueryFile(wParam, I, strTmp, cMAX_SIZE)
             strOut = strOut & Left$(strTmp, intLen) & ";"
-        Next i
+        Next I
         strOut = Left$(strOut, Len(strOut) - 1)
         Call sapiDragFinish(wParam)
         With fForm

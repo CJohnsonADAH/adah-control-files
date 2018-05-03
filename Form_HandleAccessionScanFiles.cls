@@ -18,15 +18,15 @@ Private Property Get AccnScanListView() As cAccnScanListView
         Set oAccnScanListView.BrowserControl = Me!PreviewBrowser
         Set oAccnScanListView.ListControl = Me!lstAccnScans
         
-        If Not IsNull(Me!ACCN.value) Then
-            Let oAccnScanListView.ACCN = Me!ACCN.value
+        If Not IsNull(Me!ACCN.Value) Then
+            Let oAccnScanListView.ACCN = Me!ACCN.Value
         Else
             Let oAccnScanListView.ACCN = ""
         End If
     End If
     
-    If Not IsNull(Me!ACCN.value) Then
-        Let oAccnScanListView.ACCN = Me!ACCN.value
+    If Not IsNull(Me!ACCN.Value) Then
+        Let oAccnScanListView.ACCN = Me!ACCN.Value
     Else
         Let oAccnScanListView.ACCN = ""
     End If
@@ -40,9 +40,9 @@ Private Sub Update_txtCreatorName_from(Text As String, Optional NewRecord As Boo
     Dim oAgency As New cAgency
     Let oAgency.CurName = Text
 
-    Me!txtCreatorName.value = oAgency.Name(Short:=False)
+    Me!txtCreatorName.Value = oAgency.Name(Short:=False)
     
-    If Len(Me!txtCreatorName.value) > 0 Or NewRecord Then
+    If Len(Me!txtCreatorName.Value) > 0 Or NewRecord Then
         Me!txtCreatorName.BackColor = RGB(192, 192, 192) 'Light grey
     Else
         Me!txtCreatorName.BackColor = RGB(255, 255, 0) 'Yellow!
@@ -115,7 +115,7 @@ Private Sub Command110_Click()
         Me!lstAccnScans.RemoveItem vItem
     
         aFileParts = Split(sData, "|", 2)
-        deleteAccnScanAttachments Me!ACCN.value, aFileParts(0), aFileParts(1)
+        deleteAccnScanAttachments Me!ACCN.Value, aFileParts(0), aFileParts(1)
     Next vItem
 End Sub
 
@@ -134,15 +134,15 @@ Private Sub Command98_Click()
     f.Show
         
     For Each sItem In f.SelectedItems
-        If IsNull(Me!ACCN.value) Then
+        If IsNull(Me!ACCN.Value) Then
             FillOutFormFromAttachment sItem
             On Error GoTo HandleInsertError
             DoCmd.RunCommand acCmdSaveRecord
             On Error GoTo 0
         End If
         
-        If Not IsNull(Me!ACCN.value) Then
-            Let AccnScanListView.ACCN = Me!ACCN.value
+        If Not IsNull(Me!ACCN.Value) Then
+            Let AccnScanListView.ACCN = Me!ACCN.Value
         Else
             Let AccnScanListView.ACCN = ""
         End If

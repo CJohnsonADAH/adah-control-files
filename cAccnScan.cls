@@ -185,7 +185,7 @@ End Function
 Public Function FileFolderSlug(Optional ByVal Old As Variant) As String
     Dim myPath(1 To 2) As String
     
-    Dim i As Integer
+    Dim I As Integer
     Dim J As Integer
     
     Dim sSlug As String
@@ -204,10 +204,10 @@ Public Function FileFolderSlug(Optional ByVal Old As Variant) As String
     Let myPath(1) = OldPath
     Let myPath(2) = FilePath
     
-    Let i = LBound(myPath)
-    Do Until Len(sSlug) > 0 Or i > UBound(myPath)
-        If UsePath(i) Then
-            Let asFolders = Split(myPath(i), "\")
+    Let I = LBound(myPath)
+    Do Until Len(sSlug) > 0 Or I > UBound(myPath)
+        If UsePath(I) Then
+            Let asFolders = Split(myPath(I), "\")
             
             Let J = UBound(asFolders)
             Do Until (Len(sSlug) > 0) Or (J < LBound(asFolders))
@@ -217,7 +217,7 @@ Public Function FileFolderSlug(Optional ByVal Old As Variant) As String
                 Let J = J - 1
             Loop
         End If
-        Let i = i + 1
+        Let I = I + 1
     Loop
     
     Let FileFolderSlug = sSlug
@@ -227,7 +227,7 @@ Public Property Let Url(sUrl As String)
     Dim aPath() As String
     Dim sPath As String
     Dim iStartPath As Integer
-    Dim i As Integer
+    Dim I As Integer
     
     aPath = Split(sUrl, "\")
     Let FileName = aPath(UBound(aPath))
@@ -245,13 +245,13 @@ Public Property Let Url(sUrl As String)
         Let iStartPath = iStartPath + 4
     End If
     
-    For i = iStartPath To UBound(aPath) - 1
-        If Len(aPath(i)) = 0 Then
+    For I = iStartPath To UBound(aPath) - 1
+        If Len(aPath(I)) = 0 Then
             'NOOP
         Else
-            sPath = sPath & "\" & aPath(i)
+            sPath = sPath & "\" & aPath(I)
         End If
-    Next i
+    Next I
     Let FilePath = sPath
 End Property
 
@@ -446,7 +446,7 @@ Public Function Creator() As String
     Dim cWords As Collection
     Dim sSlug As String
     Dim aPath() As String
-    Dim i As Integer
+    Dim I As Integer
     
     Set oRefs = MetadataFromFileName
     
@@ -455,18 +455,18 @@ Public Function Creator() As String
         Creator = oRefs(0)
     Else
         Let aPath = Split(FilePath, "\")
-        Let i = UBound(aPath)
+        Let I = UBound(aPath)
         
-        If i >= LBound(aPath) Then
-            If RegexMatch(aPath(i), "^Contr?olFiles?$") Then
-                Let i = i - 1
+        If I >= LBound(aPath) Then
+            If RegexMatch(aPath(I), "^Contr?olFiles?$") Then
+                Let I = I - 1
             End If
         End If
         
-        If i >= LBound(aPath) Then
-            Let Creator = aPath(i)
+        If I >= LBound(aPath) Then
+            Let Creator = aPath(I)
             
-            Let sSlug = aPath(i)
+            Let sSlug = aPath(I)
             Set cWords = camelCaseSplitString(sSlug)
             
             If cWords.Count > 0 Then
@@ -705,7 +705,7 @@ End Sub
 
 Public Sub FileSystemConvertFileName(ByVal NewFileName As String, ByVal BaseName As String, ByVal Extension As String, ByRef Result As String)
     Dim sOldFull As String, sNewFull As String
-    Dim i As Integer, sOldNew As String
+    Dim I As Integer, sOldNew As String
 
     Let Result = ""
 
@@ -737,8 +737,8 @@ CatchRename:
     Let sOldNew = NewFileName
     If Err.Number = EX_FILEALREADYEXISTS Then
         Debug.Print "DID/COULD NOT RENAME: ", Url, "TRY AGAIN..."
-        Let i = i + 1
-        Let NewFileName = BaseName & "-" & Format(i, "00") & Extension
+        Let I = I + 1
+        Let NewFileName = BaseName & "-" & Format(I, "00") & Extension
     ElseIf Err.Number = EX_FILEPERMISSIONDENIED Then
         'NOOP
     End If
@@ -790,10 +790,10 @@ Public Function isOnDefaultDrive() As Boolean
     Set FO(2) = FSO.GetFolder(getDefaultDrive & "\")
     
     'We need to account for the possibility of mapped network drives
-    Dim i As Integer
-    For i = 1 To 2
-        Let driveNames(i) = IIf(Len(FO(i).Drive.ShareName) > 0, FO(i).Drive.ShareName, FO(i).Drive.Path)
-    Next i
+    Dim I As Integer
+    For I = 1 To 2
+        Let driveNames(I) = IIf(Len(FO(I).Drive.ShareName) > 0, FO(I).Drive.ShareName, FO(I).Drive.Path)
+    Next I
     
     Let isOnDefaultDrive = (driveNames(1) = driveNames(2))
 End Function
@@ -838,7 +838,7 @@ Private Function retrieveScanFilePath()
     Dim vScanDir As Variant
     Dim cScanDirs As New Collection
     Dim sDirPrefix As String
-    Dim i As Integer
+    Dim I As Integer
     
     cScanDirs.Add "\AgencyState"
     cScanDirs.Add "\AgencyLocal"

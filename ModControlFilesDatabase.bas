@@ -62,7 +62,7 @@ Sub SecureCreatorRecord(Creator As String)
             rsAccessions.Update
         End If
     Else
-        Let sAgencyName = Nz(rsAccessions!AgencyName.value)
+        Let sAgencyName = Nz(rsAccessions!AgencyName.Value)
     End If
     rsAccessions.Close
     
@@ -240,7 +240,7 @@ Function GetAccnsFromCurName(CurName As String) As Collection
     Set Rs = oQuery.OpenRecordset
     
     Do Until Rs.EOF
-        cACCNs.Add Rs!ACCN.value
+        cACCNs.Add Rs!ACCN.Value
         Rs.MoveNext
     Loop
 
@@ -267,7 +267,7 @@ Function CountAccnsFromCurName(CurName As String) As Integer
     Set Rs = oQuery.OpenRecordset
     
     Do Until Rs.EOF
-        CountAccnsFromCurName = Rs!Count.value
+        CountAccnsFromCurName = Rs!Count.Value
         Rs.MoveNext
     Loop
 
@@ -292,7 +292,7 @@ Function IsCurNameInCreators(CurName As String) As Boolean
     Set Rs = oQuery.OpenRecordset
     
     Do Until Rs.EOF
-        IsCurNameInCreators = (Rs!Count.value > 0)
+        IsCurNameInCreators = (Rs!Count.Value > 0)
         Rs.MoveNext
     Loop
 
@@ -325,7 +325,7 @@ Function CurNamesInCreators(Optional ByVal CurName As String) As Dictionary
     Set Rs = oQuery.OpenRecordset
     
     Do Until Rs.EOF
-        dCurNames.Item(Rs!CurName.value) = True
+        dCurNames.Item(Rs!CurName.Value) = True
         Rs.MoveNext
     Loop
 
@@ -365,7 +365,7 @@ Function GetCommentsOnCollection(CollectionNumber As String) As Collection
     Set Rs = oQuery.OpenRecordset
     
     Do Until Rs.EOF
-        cComments.Add Rs!ID.value
+        cComments.Add Rs!ID.Value
         Rs.MoveNext
     Loop
 
@@ -581,9 +581,9 @@ Public Function ConvertAccnScanFileNames()
             
             oAccnScan.ConvertFileName Result:=sNewFileName
             If Len(sNewFileName) > 0 Then
-                Debug.Print Rs!FileName.value, " => ", oAccnScan.FileName
+                Debug.Print Rs!FileName.Value, " => ", oAccnScan.FileName
                 Rs.Edit
-                Let Rs!FileName.value = oAccnScan.FileName
+                Let Rs!FileName.Value = oAccnScan.FileName
                 Rs.Update
             End If
         End If
@@ -683,16 +683,16 @@ Public Function RenamePDFs(Optional ByVal LogLevel As Integer)
                 Let sFullPath = sDrive & vSearchDir & "\" & sFileName
                 
                 ' Is this scan file flagged as needing a fix for the naming convention?
-                If Rs!FileNameToBeFixed.value Then
-                    Let oAccnScan.SheetType = Nz(Rs!SheetType.value)
-                    If Nz(Rs!Timestamp.value) <> 0 Then
-                        Let oAccnScan.Timestamp = Nz(Rs!Timestamp.value)
+                If Rs!FileNameToBeFixed.Value Then
+                    Let oAccnScan.SheetType = Nz(Rs!SheetType.Value)
+                    If Nz(Rs!Timestamp.Value) <> 0 Then
+                        Let oAccnScan.Timestamp = Nz(Rs!Timestamp.Value)
                     End If
-                    If Len(Nz(Rs.Fields("AccnScans.ACCN").value)) > 0 Then
-                        Let oAccnScan.ACCN = Nz(Rs.Fields("AccnScans.ACCN").value)
+                    If Len(Nz(Rs.Fields("AccnScans.ACCN").Value)) > 0 Then
+                        Let oAccnScan.ACCN = Nz(Rs.Fields("AccnScans.ACCN").Value)
                     End If
                         
-                    Let sCreator = Nz(Rs!Creator.value)
+                    Let sCreator = Nz(Rs!Creator.Value)
                     If Len(sCreator) = 0 Then
                         Let sCreator = oAccnScan.Creator
                     End If
@@ -826,14 +826,14 @@ Public Sub GetCabinetFoldersFromAccessions()
     
     Set Rs = CurrentDb.OpenRecordset("AccnScans")
     Do Until Rs.EOF
-        If IsNull(Rs!CabinetFolder.value) And Len(Nz(Rs!ACCN.value)) > 0 Then
-            CabinetFolder = DLookup("CabinetFolder", "Accessions", "ACCN='" & Nz(Rs!ACCN.value) & "'")
+        If IsNull(Rs!CabinetFolder.Value) And Len(Nz(Rs!ACCN.Value)) > 0 Then
+            CabinetFolder = DLookup("CabinetFolder", "Accessions", "ACCN='" & Nz(Rs!ACCN.Value) & "'")
             If Len(Nz(CabinetFolder)) > 0 Then
                 nCabinetFolder = Nz(DLookup("ID", "CabinetFolders", "Label='" & Replace(CabinetFolder, "'", "''") & "'"))
-                Debug.Print Rs!ID.value, " in folder ", CabinetFolder, nCabinetFolder
-                If IsNull(Rs!CabinetFolder.value) And nCabinetFolder > 0 Then
+                Debug.Print Rs!ID.Value, " in folder ", CabinetFolder, nCabinetFolder
+                If IsNull(Rs!CabinetFolder.Value) And nCabinetFolder > 0 Then
                     Rs.Edit
-                    Rs!CabinetFolder.value = nCabinetFolder
+                    Rs!CabinetFolder.Value = nCabinetFolder
                     Rs.Update
                 End If
             End If

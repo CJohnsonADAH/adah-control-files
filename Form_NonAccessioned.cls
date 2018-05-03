@@ -20,9 +20,9 @@ Private Sub Update_txtCreatorName_from(Text As String, Optional NewRecord As Boo
     Dim oAgency As New cAgency
     Let oAgency.CurName = Text
 
-    Me!txtCreatorName.value = oAgency.Name(Short:=False)
+    Me!txtCreatorName.Value = oAgency.Name(Short:=False)
 
-    If Len(Me!txtCreatorName.value) > 0 Or NewRecord Then
+    If Len(Me!txtCreatorName.Value) > 0 Or NewRecord Then
         Me!txtCreatorName.BackColor = RGB(192, 192, 192) 'Light grey
     Else
         Me!txtCreatorName.BackColor = RGB(255, 255, 0) 'Yellow!
