@@ -14,7 +14,6 @@ Attribute VB_Exposed = False
 '**
 Option Compare Database
 Option Explicit
-Implements IReceiver
 
 Private oView As Object
 Private oScan As cAccnScan
@@ -211,10 +210,7 @@ Private Sub Form_Current()
 End Sub
 
 Private Sub Form_Open(Cancel As Integer)
-    Let sInstanceId = CreateGuidString
-
-    InitializePipesAndFilters
-    gPipes.AddAction Outlet:="RenameFile", Plug:=Me
+    'NOOP
 End Sub
 
 Private Sub lblACCN_Click()
@@ -250,20 +246,4 @@ Private Sub lblACCN_MouseUp(Button As Integer, Shift As Integer, X As Single, Y 
         Let lblACCN.ForeColor = RGB(0, 0, 255)
     End If
 End Sub
-
-Public Sub IReceiver_HandleAction(Parameters As Variant, Outlet As String)
-    MsgBox Outlet & " TRIGGERED " & IReceiver_InstanceId
-End Sub
-
-Public Function IReceiver_Filter(Element As Variant, Parameters As Variant, Outlet As String) As Variant
-
-End Function
-
-Public Property Get IReceiver_ClassId() As String
-    Let IReceiver_ClassId = "Form_AccnScans"
-End Property
-
-Public Property Get IReceiver_InstanceId() As String
-    Let IReceiver_InstanceId = sInstanceId
-End Property
 
