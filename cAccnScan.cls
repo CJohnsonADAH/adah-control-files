@@ -755,11 +755,12 @@ End Sub
 Public Sub DatabaseConvertFileNames(OldFileName As String, OldFilePath As String)
     Dim oQuery As DAO.QueryDef
     Dim rsAccnScan As DAO.Recordset
+    Dim FromTo As Dictionary
     
-    On Error Resume Next: CurrentDb.QueryDefs.Delete "qUpdateAccnScans": On Error GoTo 0
-            
+    'On Error Resume Next: CurrentDb.QueryDefs.Delete "qUpdateAccnScans": On Error GoTo 0
+    
     Set oQuery = CurrentDb.CreateQueryDef( _
-        Name:="qUpdateAccnScans", _
+        Name:="", _
         SQLText:="SELECT * FROM AccnScans " _
         & "WHERE FileName=[paramFileName] " _
         & "AND FilePath=[paramFilePath]" _
@@ -775,12 +776,18 @@ Public Sub DatabaseConvertFileNames(OldFileName As String, OldFilePath As String
         rsAccnScan!FileNameToBeFixed = False
         rsAccnScan.Update
         
+        Set FromTo = New Dictionary: With FromTo
+            .Add Key:="Source", Item:=OldFileName
+            .Add Key:="Destination", Item:=FileName
+        End With
+        DoAction Outlet:="FileHasBeenRenamedInDatabase", Parameters:=FromTo
+        
         rsAccnScan.MoveNext
     Loop
     rsAccnScan.Close
     Set rsAccnScan = Nothing
     
-    On Error Resume Next: CurrentDb.QueryDefs.Delete "qUpdateAccnScans": On Error GoTo 0
+    'On Error Resume Next: CurrentDb.QueryDefs.Delete "qUpdateAccnScans": On Error GoTo 0
 
 End Sub
 

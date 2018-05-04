@@ -34,7 +34,11 @@ Public Property Set BrowserControl(oBC As Object)
 End Property
 
 Public Property Get BrowserControl() As Object
-    Set BrowserControl = oBrowserControl
+    If TypeName(oBrowserControl) = "WebBrowserControl" Then
+        Set BrowserControl = oBrowserControl
+    Else
+        Set BrowserControl = Nothing
+    End If
 End Property
 
 Public Property Set ListControl(oLC As Object)
@@ -330,6 +334,9 @@ Public Sub HandleFileHasBeenRenamed(Parameters As Variant)
         'Was the file we were viewing renamed in this process?
         If LCase(sFileURL) = LCase("file:" & Replace(Parameters("Source"), "\", "/")) Then
             Let sFileURL = Parameters("Destination")
+            If Not ListControl Is Nothing Then
+                ListControl.Requery
+            End If
         End If
         View sFileURL
     End If
