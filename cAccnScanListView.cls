@@ -222,6 +222,7 @@ Public Sub AttachToRecord(Location As Variant, Optional NewRecord As Boolean, Op
     Exit Sub
     
 InsertIntoAccessionsCatch:
+    'FIXME: We probably should do something more intelligent here by way of error handling
     MsgBox "INSERT ERROR: " & Err.Source & " - " & Err.Description
 
     Resume Next
