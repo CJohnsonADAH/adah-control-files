@@ -12,9 +12,6 @@ Option Explicit
 
 Private bNewRecord As Boolean
 Private iID As Long
-Private sDrive As String
-Private sFilePath As String
-Private sFileName As String
 Private sOldPath As String
 Private iCabinetFolder As Long, oFolder As cCabinetFolder, bCabinetFolderSet As Boolean
 Private sACCN As String
@@ -23,6 +20,8 @@ Private bFileNameToBeFixed As Boolean
 Private dSheetTypeSlugs As Dictionary
 Private dFileSystemMetadata As Dictionary
 Private dDatabaseMetadata As Dictionary
+
+Private oNamingConvention As CScanFileNamingConvention
 
 '**
 '* Get cAccnScan::ID:
@@ -47,11 +46,7 @@ End Property
 '*      For example, \CollectionsManagement\AgencyFiles\Local\63_TuscaloosaCounty\ControlFiles
 '**
 Public Property Get FilePath() As String
-    If Len(sFilePath) = 0 Then
-        FilePath = retrieveScanFilePath
-    Else
-        FilePath = sFilePath
-    End If
+    Let FilePath = NamingConvention.RelativePath
 End Property
 
 '**
@@ -62,11 +57,11 @@ End Property
 '*      For example, \CollectionsManagement\AgencyFiles\Local\63_TuscaloosaCounty\ControlFiles
 '**
 Public Property Let FilePath(sFP As String)
-    sFilePath = sFP
+    Let NamingConvention.RelativePath = sFP
 End Property
 
 Public Property Get FileName() As String
-    FileName = sFileName
+    Let FileName = NamingConvention.BaseName
 End Property
 
 Private Sub SetFileSystemMetaData(Key As String, Item As Variant)
@@ -83,9 +78,9 @@ Public Property Let FileName(sFN As String)
     Dim oAx As cAccession
     
     sACCN = ""
-    sFileName = sFN
+    Let NamingConvention.BaseName = sFN
     
-    Set cMeta = MetadataFromFileName
+    Set cMeta = NamingConvention.Metadata
     If Not cMeta Is Nothing Then
         dFileSystemMetadata.RemoveAll
         
@@ -111,12 +106,12 @@ Public Property Let FileName(sFN As String)
         End If
         
         'If it can be mined from the file naming convention, set the SheetType
-        If IsAccnSheet Then
+        If NamingConvention.IsAccnSheet Then
             SetFileSystemMetaData "SheetType", "ACCN"
-        ElseIf IsDocumentationSheet(Version:=2) Then
-            SetFileSystemMetaData "SheetType", GetSheetTypeFromSlug(RegexComponent(sFileName, MATCH_DOCUMENTATION_V1, 2))
-        ElseIf IsDocumentationSheet(Version:=1) Then
-            SetFileSystemMetaData "SheetType", RegexComponent(FileName, MATCH_DOCUMENTATION_V2, 2)
+        ElseIf NamingConvention.IsDocumentationSheet(Version:=2) Then
+            SetFileSystemMetaData "SheetType", GetSheetTypeFromSlug(RegexComponent(NamingConvention.BaseName, NamingConvention.MATCH_DOCUMENTATION_V1, 2))
+        ElseIf NamingConvention.IsDocumentationSheet(Version:=1) Then
+            SetFileSystemMetaData "SheetType", RegexComponent(NamingConvention.BaseName, NamingConvention.MATCH_DOCUMENTATION_V2, 2)
         End If
     End If
 
@@ -237,57 +232,10 @@ Public Function FileFolderSlug(Optional ByVal Old As Variant) As String
     Let FileFolderSlug = sSlug
 End Function
 
-Public Property Let Url(sUrl As String)
-    Dim aPath() As String
-    Dim sPath As String
-    Dim iStartPath As Integer
-    Dim I As Integer
-    
-    aPath = Split(sUrl, "\")
-    Let FileName = aPath(UBound(aPath))
-    
-    sDrive = ""
-    sPath = ""
-    
-    Let iStartPath = LBound(aPath)
-    
-    If RegexMatch(Left(sUrl, 2), "[A-Za-z][:]") Then
-        Let sDrive = Left(sUrl, 2)
-        Let iStartPath = iStartPath + 1
-    ElseIf Left(sUrl, 2) = "\\" Or Left(sUrl, 2) = "//" Then
-        Let sDrive = "\\" & aPath(iStartPath + 2) & "\" & aPath(iStartPath + 3)
-        Let iStartPath = iStartPath + 4
-    End If
-    
-    For I = iStartPath To UBound(aPath) - 1
-        If Len(aPath(I)) = 0 Then
-            'NOOP
-        Else
-            sPath = sPath & "\" & aPath(I)
-        End If
-    Next I
-    Let FilePath = sPath
-End Property
+Public Property Let Url(s As String): Let NamingConvention.Url = s: End Property
+Public Property Get Url() As String: Let Url = NamingConvention.Url: End Property
 
-Public Property Get Url() As String
-    Dim Normalize As Boolean
-    
-    Dim sUrl As String
-    sUrl = Drive & FilePath & "\" & FileName
-    If (Normalize) Then
-        sUrl = Replace(sUrl, "\", "/")
-        sUrl = "file:///" & sUrl
-    End If
-    
-    Url = sUrl
-End Property
-
-Public Property Get Drive() As String
-    If Len(sDrive) = 0 Then
-        sDrive = getDefaultDrive
-    End If
-    Drive = sDrive
-End Property
+Public Property Get Drive() As String: Let Drive = NamingConvention.Drive: End Property
 
 Public Property Get SheetType() As String
     If dDatabaseMetadata.Exists("SheetType") Then
@@ -337,103 +285,16 @@ Public Property Let FileNameToBeFixed(b As Boolean)
     Let bFileNameToBeFixed = b
 End Property
 
+Public Property Get NamingConvention() As CScanFileNamingConvention
+    Set NamingConvention = oNamingConvention
+End Property
+
+Public Property Set NamingConvention(o As CScanFileNamingConvention)
+    Set oNamingConvention = o
+End Property
+
 Public Function Exists() As Boolean
     Let Exists = Len(Dir(Url)) > 0
-End Function
-
-Public Function RecordedFilePath() As String
-    RecordedFilePath = sFilePath
-End Function
-
-Public Function IsAccnSheet(Optional ByVal Version As Integer) As Boolean
-    Dim Pattern As String
-    
-    Select Case Version
-    Case 1:
-        Let Pattern = MATCH_FILENAME_V1
-    Case 2:
-        Let Pattern = MATCH_FILENAME_V2
-    Case Else:
-        Let Pattern = "(" & MATCH_FILENAME_V1 & "|" & MATCH_FILENAME_V2 & ")"
-    End Select
-    
-    Let IsAccnSheet = RegexMatch(FileName, Pattern)
-
-End Function
-
-Public Function IsDocumentationSheet(Optional ByVal Version As Integer) As Boolean
-    Dim Pattern As String
-    
-    Select Case Version
-    Case 1:
-        Let Pattern = MATCH_DOCUMENTATION_V1
-    Case 2:
-        Let Pattern = MATCH_DOCUMENTATION_V2
-    Case Else:
-        Let Pattern = "(" & MATCH_DOCUMENTATION_V1 & "|" & MATCH_DOCUMENTATION_V2 & ")"
-    End Select
-
-    Let IsDocumentationSheet = RegexMatch(FileName, Pattern)
-End Function
-
-Public Function IsCopierScan() As Boolean
-    Let IsCopierScan = RegexMatch(FileName, MATCH_COPIER_SCAN)
-End Function
-
-Public Function MATCH_FILENAME_V1() As String
-    Let MATCH_FILENAME_V1 = "^([A-Z0-9]+)_([0-9]+)_([0-9]+)_([0-9]{4})?([0-9]{2})?([0-9]{2})?(.*)[.]PDF(|.*)$"
-End Function
-
-Public Function MATCH_FILENAME_V2() As String
-    Let MATCH_FILENAME_V2 = "^([A-Z0-9]{2,3})([0-9]{4})([0-9]{4})()()()(.*)[.]PDF(|.*)$"
-End Function
-
-Public Function MATCH_DOCUMENTATION_V1() As String
-    Let MATCH_DOCUMENTATION_V1 = "^([A-Z0-9]{2,3})_(Correspondence|Documentation|Administrative|Administration|Clipping|Microfilm)_(.*)([.]PDF)$"
-End Function
-
-Public Function MATCH_DOCUMENTATION_V2() As String
-    Let MATCH_DOCUMENTATION_V2 = "^([A-Z0-9]{2,3})(Corr|Doc|Admin|Clip|Microfilm)(.*)([.]PDF)$"
-End Function
-
-Public Function MATCH_COPIER_SCAN() As String
-    Let MATCH_COPIER_SCAN = "^copier[.]archives@archives[.]alabama[.]gov_([0-9]+)_([0-9]+)([.]PDF)$"
-End Function
-
-Public Function MetadataFromFileName() As Variant
-    Dim bFound As Boolean
-    
-    Dim oRef As Variant
-    Dim cRefs As Variant
-    
-    Dim vPattern As Variant
-    Dim cPatterns As New Collection: With cPatterns
-        .Add MATCH_FILENAME_V2
-        .Add MATCH_FILENAME_V1
-    End With
-    
-    Dim oIsAccnFile As New RegExp: With oIsAccnFile
-        .IgnoreCase = True
-    End With
-    
-    For Each vPattern In cPatterns
-        oIsAccnFile.Pattern = vPattern
-        Set cRefs = oIsAccnFile.Execute(FileName)
-        If cRefs.Count > 0 Then
-            For Each oRef In cRefs
-                Set MetadataFromFileName = oRef.SubMatches
-                Let bFound = True
-                Exit For
-            Next oRef
-        Else
-            Set MetadataFromFileName = Nothing
-        End If
-        
-        If bFound Then
-            Exit For
-        End If
-    Next vPattern
-    
 End Function
 
 Public Property Get ACCN() As String
@@ -455,43 +316,11 @@ Public Property Let ACCN(s As String)
 End Property
 
 Public Function Creator() As String
-    Dim oRefs As Variant
-    Dim cWords As Collection
-    Dim sSlug As String
-    Dim aPath() As String
-    Dim I As Integer
-    
-    Set oRefs = MetadataFromFileName
-    
-    'Get the ACCN # from the FileName
-    If Not oRefs Is Nothing Then
-        Creator = oRefs(0)
-    Else
-        Let aPath = Split(FilePath, "\")
-        Let I = UBound(aPath)
-        
-        If I >= LBound(aPath) Then
-            If RegexMatch(aPath(I), "^Contr?olFiles?$") Then
-                Let I = I - 1
-            End If
-        End If
-        
-        If I >= LBound(aPath) Then
-            Let Creator = aPath(I)
-            
-            Let sSlug = aPath(I)
-            Set cWords = camelCaseSplitString(sSlug)
-            
-            If cWords.Count > 0 Then
-                Let Creator = cWords.Item(1)
-            End If
-        End If
-    End If
-
+    Let Creator = NamingConvention.Creator
 End Function
 
 Public Sub CheckFileNameToBeFixed()
-    Let FileNameToBeFixed = FileNameToBeFixed Or IsCopierScan
+    Let FileNameToBeFixed = FileNameToBeFixed Or NamingConvention.IsCopierScan
 End Sub
 
 Public Sub InsertIntoAccessions(Optional ByRef Controller As Form)
@@ -542,7 +371,7 @@ Public Sub InsertIntoAccnScans(Optional ByRef Controller As Form)
     Set oAccession = New cAccession: Let oAccession.ACCN = ACCN
     Set cScans = oAccession.Attachments
     For Each vScan In cScans
-        If (vScan.FileName = FileName) And (vScan.RecordedFilePath = FilePath) Then
+        If (vScan.NamingConvention.Conflicts(Me.NamingConvention)) Then
             Err.Raise Number:=EX_ACCNSCAN_DUPLICATE, Source:="InsertIntoAccessions", Description:="I DON'T THINK HE'LL BE VERY INTERESTED IN " & FileName & ". HE'S ALREADY GOT ONE, YOU SEE? IT'SA VERY NICE-UH!"
         End If
     Next vScan
@@ -597,7 +426,7 @@ Public Sub InsertIntoAccnScans(Optional ByRef Controller As Form)
             End If
             .Controls("CabinetFolder").Value = CabinetFolder
             .Controls("OldPath").Value = OldPath
-            .Controls("FileNameToBeFixed").Value = FileNameToBeFixed Or (NewRecord And IsCopierScan)
+            .Controls("FileNameToBeFixed").Value = FileNameToBeFixed Or (NewRecord And NamingConvention.IsCopierScan)
         End With
         
     End If
@@ -605,7 +434,6 @@ End Sub
 
 Public Sub ConvertFileName(Optional ByRef Result As String)
     Dim oIsOldAccnFile As New RegExp
-    Dim reIsCopierScan As New RegExp
     Dim reIsBadDateScan As New RegExp
     
     Dim MetaD As Variant
@@ -623,17 +451,12 @@ Public Sub ConvertFileName(Optional ByRef Result As String)
     
     With oIsOldAccnFile
         .IgnoreCase = True
-        .Pattern = MATCH_FILENAME_V1
-    End With
-    
-    With reIsCopierScan
-        .IgnoreCase = True
-        .Pattern = MATCH_COPIER_SCAN
+        .Pattern = NamingConvention.MATCH_FILENAME_V1
     End With
     
     With reIsBadDateScan
         .IgnoreCase = True
-        .Pattern = MATCH_DOCUMENTATION_V2
+        .Pattern = NamingConvention.MATCH_DOCUMENTATION_V2
     End With
     
     'Phase 1. Try to use database meta-data
@@ -663,7 +486,7 @@ Public Sub ConvertFileName(Optional ByRef Result As String)
         Let sNewFileName = sNewFileBaseName & sNewFileExtension
         
     'Phase 2. Try to use file system naming convention meta-data
-    ElseIf oIsOldAccnFile.Test(FileName) Then
+    ElseIf NamingConvention.IsAccnSheet(Version:=1) Then
         Set cRefs = oIsOldAccnFile.Execute(FileName)
         
         For Each oRef In cRefs
@@ -675,8 +498,8 @@ Public Sub ConvertFileName(Optional ByRef Result As String)
         Let sNewFileExtension = ".PDF" & MetaD.Item(7)
         Let sNewFileName = sNewFileBaseName & sNewFileExtension
     
-    ElseIf reIsCopierScan.Test(FileName) Then
-        
+    ElseIf NamingConvention.IsCopierScan Then
+
         Let sCurName = GetCurNameFromCreatorCode(Creator)
         Let sNewFileExtension = ".PDF"
         
@@ -847,56 +670,6 @@ Public Sub doCopyTo(NewPath As String)
     Let OldPath = sOldFullPath
 End Sub
 
-'**
-'*
-'**
-Private Function retrieveScanFilePath()
-    Dim sRelativePath As String
-    Dim f As String
-    Dim sPattern As String
-    Dim aWords() As String
-    Dim cSearchDirs As New Collection
-    Dim vSearchDir As Variant
-    
-    Dim vScanDir As Variant
-    Dim cScanDirs As New Collection
-    Dim sDirPrefix As String
-    Dim I As Integer
-    
-    cScanDirs.Add "\AgencyState"
-    cScanDirs.Add "\AgencyLocal"
-    cScanDirs.Add "\AgencyCourts"
-    cScanDirs.Add "\AgencyUS"
-    cScanDirs.Add "\CollectionsManagement\AgencyFiles\State"
-    cScanDirs.Add "\CollectionsManagement\AgencyFiles\Local"
-    
-    For Each vScanDir In cScanDirs
-        aWords = Split(FileName, "_", 2)
-        If LBound(aWords) = 0 And UBound(aWords) > 0 Then
-            sPattern = aWords(0) & "*"
-        Else
-            sPattern = "*"
-        End If
-    
-        sDirPrefix = vScanDir & "\"
-        f = Dir(Drive & sDirPrefix & sPattern, vbDirectory)
-        Do While Len(f) > 0
-            cSearchDirs.Add (sDirPrefix & f & "\ControlFile")
-            cSearchDirs.Add (sDirPrefix & f & "\ControlFiles")
-            f = Dir()
-        Loop
-    Next vScanDir
-
-    For Each vSearchDir In cSearchDirs
-        sPattern = Drive & vSearchDir & "\" & FileName
-        If Dir(sPattern, vbNormal) <> "" Then
-            retrieveScanFilePath = vSearchDir
-            Exit For
-        End If
-    Next vSearchDir
-    
-End Function
-
 Public Function GetSheetTypeFromSlug(Slug As String) As String
     Dim vType As Variant
     
@@ -975,12 +748,16 @@ Private Sub Class_Initialize()
     
     Set dFileSystemMetadata = New Dictionary
     Set dDatabaseMetadata = New Dictionary
+    
+    Set oNamingConvention = New CScanFileNamingConvention
 End Sub
 
 Private Sub Class_Terminate()
-    dSheetTypeSlugs.RemoveAll
-    Set dSheetTypeSlugs = Nothing
+    'Empty and unlink the dictionary objects
+    dSheetTypeSlugs.RemoveAll: Set dSheetTypeSlugs = Nothing
+    dFileSystemMetadata.RemoveAll: Set dFileSystemMetadata = Nothing
+    dDatabaseMetadata.RemoveAll: Set dDatabaseMetadata = Nothing
     
-    Set dFileSystemMetadata = New Dictionary
-    Set dDatabaseMetadata = New Dictionary
+    'Unlike the NamingConvention object
+    Set oNamingConvention = Nothing
 End Sub

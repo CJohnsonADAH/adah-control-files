@@ -822,27 +822,27 @@ Public Function RenamePDFs(Optional ByVal LogLevel As Integer)
                 End If
                 
             'No, but we can tell it's an ACCN sheet from the naming convention
-            ElseIf oAccnScan.IsAccnSheet Then
+            ElseIf oAccnScan.NamingConvention.IsAccnSheet Then
                 'NOOP
                 If LogLevel = 0 Or LogLevel > 1 Then
                     Debug.Print "ACCN SHEET UNPROCESSED [NO DB]: ", sFileName
                 End If
                     
             'No, but we can tell it's a documentation sheet from the V1 naming convention
-            ElseIf oAccnScan.IsDocumentationSheet(Version:=1) Then
+            ElseIf oAccnScan.NamingConvention.IsDocumentationSheet(Version:=1) Then
                 Set cBits = New Collection
-                cBits.Add RegexComponent(sFileName, oAccnScan.MATCH_DOCUMENTATION_V1, 1)
+                cBits.Add RegexComponent(sFileName, oAccnScan.NamingConvention.MATCH_DOCUMENTATION_V1, 1)
                 cBits.Add oAccnScan.SheetTypeSlug
-                cBits.Add RegexComponent(sFileName, oAccnScan.MATCH_DOCUMENTATION_V1, 3)
-                cBits.Add RegexComponent(sFileName, oAccnScan.MATCH_DOCUMENTATION_V1, 4)
+                cBits.Add RegexComponent(sFileName, oAccnScan.NamingConvention.MATCH_DOCUMENTATION_V1, 3)
+                cBits.Add RegexComponent(sFileName, oAccnScan.NamingConvention.MATCH_DOCUMENTATION_V1, 4)
                 
                 ' Is it referenced in AccnScans?
                 Set Rs = CurrentDb.OpenRecordset("SELECT * FROM AccnScans WHERE FileName='" & Replace(sFileName, "'", "''") & "'")
                 If Rs.EOF Then
-                    Debug.Print RegexComponent(sFileName, oAccnScan.MATCH_DOCUMENTATION_V1, 2) & " [NO DB]: ", sFileName, JoinCollection("", cBits)
+                    Debug.Print RegexComponent(sFileName, oAccnScan.NamingConvention.MATCH_DOCUMENTATION_V1, 2) & " [NO DB]: ", sFileName, JoinCollection("", cBits)
                     Name (sDrive & vSearchDir & "\" & sFileName) As (sDrive & vSearchDir & "\" & JoinCollection("", cBits))
                 Else
-                    Debug.Print RegexComponent(sFileName, oAccnScan.MATCH_DOCUMENTATION_V1, 2) & " [DB]: ", sFileName, JoinCollection("", cBits)
+                    Debug.Print RegexComponent(sFileName, oAccnScan.NamingConvention.MATCH_DOCUMENTATION_V1, 2) & " [DB]: ", sFileName, JoinCollection("", cBits)
                     Name (sDrive & vSearchDir & "\" & sFileName) As (sDrive & vSearchDir & "\" & JoinCollection("", cBits))
                     Rs.Edit
                     Let Rs!FileName = JoinCollection("", cBits)
@@ -853,7 +853,7 @@ Public Function RenamePDFs(Optional ByVal LogLevel As Integer)
                 Set cBits = Nothing
             
             'No, but we can tell it's a documentation sheet from the V2 naming convention
-            ElseIf oAccnScan.IsDocumentationSheet(Version:=2) Then
+            ElseIf oAccnScan.NamingConvention.IsDocumentationSheet(Version:=2) Then
                 'NOOP
             
             'No, and we can't really tell what it is from the naming conventions
