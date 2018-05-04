@@ -19,6 +19,8 @@ Private oAccnScanListView As cAccnScanListView
 Private sLastCabinetFolderLabel As String
 Private sLastCabinetFolderPath As String
 
+Private PendingAttachment As cAccnScan
+
 Private Type AccessionDetails
     ACCN As String
     Creator As String
