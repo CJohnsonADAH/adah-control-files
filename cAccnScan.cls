@@ -16,7 +16,6 @@ Private sDrive As String
 Private sFilePath As String
 Private sFileName As String
 Private sOldPath As String
-Private sSheetType As String, bSheetTypeSet As Boolean
 Private iCabinetFolder As Long, oFolder As cCabinetFolder, bCabinetFolderSet As Boolean
 Private sACCN As String
 Private bFileNameToBeFixed As Boolean
@@ -90,9 +89,12 @@ Public Property Let FileName(sFN As String)
     If Not cMeta Is Nothing Then
         dFileSystemMetadata.RemoveAll
         
+        'Set the Creator
         If Not cMeta(0) = Empty Then
             SetFileSystemMetaData "Creator", cMeta(0)
         End If
+        
+        'If it's available, set the ACCN number
         If Not cMeta(1) = Empty And Not cMeta(2) = Empty Then
             Set oAx = New cAccession: With oAx
                 .Major = cMeta(1)
@@ -102,10 +104,22 @@ Public Property Let FileName(sFN As String)
             Set oAx = Nothing
             
         End If
+        
+        'If it can be mined from the file naming convention, set the timestamp
         If Not cMeta(3) = Empty And Not cMeta(3) = "ND" Then
             SetFileSystemMetaData "Timestamp", DateSerial(Val(cMeta(3)), Val(cMeta(4)), Val(cMeta(5)))
         End If
+        
+        'If it can be mined from the file naming convention, set the SheetType
+        If IsAccnSheet Then
+            SetFileSystemMetaData "SheetType", "ACCN"
+        ElseIf IsDocumentationSheet(Version:=2) Then
+            SetFileSystemMetaData "SheetType", GetSheetTypeFromSlug(RegexComponent(sFileName, MATCH_DOCUMENTATION_V1, 2))
+        ElseIf IsDocumentationSheet(Version:=1) Then
+            SetFileSystemMetaData "SheetType", RegexComponent(FileName, MATCH_DOCUMENTATION_V2, 2)
+        End If
     End If
+
 End Property
 
 Public Property Get OldPath() As String
@@ -276,22 +290,21 @@ Public Property Get Drive() As String
 End Property
 
 Public Property Get SheetType() As String
-    Let SheetType = sSheetType
-    
-    If Not bSheetTypeSet Then
-        If IsAccnSheet Then
-            Let SheetType = "ACCN"
-        ElseIf IsDocumentationSheet(Version:=2) Then
-            Let SheetType = GetSheetTypeFromSlug(RegexComponent(FileName, MATCH_DOCUMENTATION_V1, 2))
-        ElseIf IsDocumentationSheet(Version:=1) Then
-            Let SheetType = RegexComponent(FileName, MATCH_DOCUMENTATION_V2, 2)
-        End If
+    If dDatabaseMetadata.Exists("SheetType") Then
+        Let SheetType = dDatabaseMetadata.Item("SheetType")
+    ElseIf dFileSystemMetadata.Exists("SheetType") Then
+        Let SheetType = dFileSystemMetadata.Item("SheetType")
+    Else
+        Let SheetType = ""
     End If
 End Property
 
 Public Property Let SheetType(s As String)
-    Let sSheetType = s
-    Let bSheetTypeSet = True
+    If Not dDatabaseMetadata.Exists("SheetType") Then
+        dDatabaseMetadata.Add Key:="SheetType", Item:=s
+    End If
+    
+    Let dDatabaseMetadata.Item("SheetType") = s
 End Property
 
 Public Property Get Timestamp() As Date
@@ -305,7 +318,7 @@ Public Property Get Timestamp() As Date
 End Property
 
 Public Property Let Timestamp(t As Date)
-    If dDatabaseMetadata.Exists("Timestamp") Then
+    If Not dDatabaseMetadata.Exists("Timestamp") Then
         dDatabaseMetadata.Add Key:="Timestamp", Item:=t
     End If
     
