@@ -21,7 +21,7 @@ Public Const EX_FILEALREADYEXISTS = 58
 Public Const EX_FILEPERMISSIONDENIED = 75
 Public Const EX_DUPLICATE_KEY_VALUE = 3022
 
-Public Const COLOR_ALERT As Long = &HFFFF           'Bright yellow
+Public Const COLOR_ALERT As Long = &H10FFFF         'Bright yellow
 Public Const COLOR_DISABLED As Long = &HC0C0C0      'Light grey
 Public Const COLOR_UNMARKED As Long = &HFFFFFF      'White
 Public Const COLOR_MARKEDERROR As Long = &HC0C0FF   'Light red
