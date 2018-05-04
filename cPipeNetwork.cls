@@ -13,22 +13,37 @@ Option Explicit
 Private dPipelines As Dictionary
 Private dFilters As Dictionary
 
-Private Function EventOf(ByVal Outlet As String, ByVal EventType As String)
-    Select Case EventType
-    Case "Action":
-        Let EventOf = "Do-" & Outlet
-    Case "Filter":
-        Let EventOf = "Apply-" & Outlet
-    Case Else:
-        Let EventOf = EventType & "-" & Outlet
-    End Select
+Public Property Get Listeners() As Integer
+    If dFilters Is Nothing Then
+        Let Listeners = 0
+    Else
+        Let Listeners = dFilters.Count
+    End If
+End Property
+
+Private Function EventOf(ByVal Outlet As String, ByVal EventType As String) As String
+    If Len(Outlet) > 0 Then
+        Select Case EventType
+        Case "Action":
+            Let EventOf = "Do-" & Outlet
+        Case "Filter":
+            Let EventOf = "Apply-" & Outlet
+        Case Else:
+            Let EventOf = EventType & "-" & Outlet
+        End Select
+    End If
 End Function
+
+Public Sub Reset()
+    dPipelines.RemoveAll
+    dFilters.RemoveAll
+End Sub
 
 Public Sub AddAction(ByVal Outlet As String, Plug As IReceiver, Optional ByVal Priority As Integer)
     AddEvent Outlet:=EventOf(Outlet, "Action"), Plug:=Plug, Priority:=Priority
 End Sub
 
-Public Sub RemoveAction(ByVal Outlet As String, Instance As Variant)
+Public Sub RemoveAction(Instance As Variant, Optional ByVal Outlet As String)
     RemoveEvent Outlet:=EventOf(Outlet, "Action"), Instance:=Instance
 End Sub
 
@@ -68,7 +83,7 @@ Public Sub AddFilter(ByVal Outlet As String, Plug As IReceiver, Optional ByVal P
     AddEvent Outlet:=EventOf(Outlet, "Filter"), Plug:=Plug, Priority:=Priority
 End Sub
 
-Public Sub RemoveFilter(ByVal Outlet As String, Instance As Variant)
+Public Sub RemoveFilter(Instance As Variant, Optional ByVal Outlet As String)
     RemoveEvent Outlet:=EventOf(Outlet, "Filter"), Instance:=Instance
 End Sub
 
@@ -130,12 +145,13 @@ Public Sub AddEvent(ByVal Outlet As String, Plug As IReceiver, Optional ByVal Pr
     End If
 End Sub
 
-Public Sub RemoveEvent(ByVal Outlet As String, Instance As Variant)
+Public Sub RemoveEvent(Instance As Variant, Optional ByVal Outlet As String)
     Dim dLoc As Dictionary
     Dim dPipe As Dictionary
     Dim dTier As Dictionary
     Dim InstanceId As String
     
+    Dim vKey As Variant
     Dim Key As String
     
     If IsObject(Instance) Then
@@ -144,16 +160,28 @@ Public Sub RemoveEvent(ByVal Outlet As String, Instance As Variant)
         Let InstanceId = Instance
     End If
     
-    Let Key = Outlet & "," & InstanceId
-    If dFilters.Exists(Key) Then
-        Set dLoc = dFilters.Item(Key)
+    If Len(Outlet) = 0 Then
+        For Each vKey In dFilters.Keys
+            Let Key = Nz(vKey)
+            If Right(Key, Len(InstanceId)) = InstanceId Then
+                RemoveEvent Outlet:=Left(Key, Len(Key) - (Len(InstanceId) + 1)), Instance:=InstanceId
+            End If
+        Next vKey
+    Else
         
-        Set dPipe = dPipelines.Item(dLoc.Item("Outlet"))
-        Set dTier = dPipe.Item(dLoc.Item("Priority"))
-        
-        dTier.Remove Key:=InstanceId
-        dFilters.Remove Key:=Key
+        Let Key = Outlet & "," & InstanceId
+        If dFilters.Exists(Key) Then
+            Set dLoc = dFilters.Item(Key)
+            
+            Set dPipe = dPipelines.Item(dLoc.Item("Outlet"))
+            Set dTier = dPipe.Item(dLoc.Item("Priority"))
+            
+            dTier.Remove Key:=InstanceId
+            dFilters.Remove Key:=Key
+        End If
+    
     End If
+    
 End Sub
 
 Private Sub Class_Initialize()

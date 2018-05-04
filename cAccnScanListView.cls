@@ -341,22 +341,27 @@ Public Sub HandleFileHasBeenRenamed(Parameters As Variant)
     'End If
 End Sub
 
+Public Sub HandleFileHasBeenRenamedInDatabase(Parameters As Variant)
+    If Not ListControl Is Nothing Then
+        ListControl.Requery
+    End If
+End Sub
+
 Public Sub Unload()
     Set BrowserControl = Nothing
     Set Form = Nothing
 
     InitializePipesAndFilters
-    gPipes.RemoveAction Outlet:="FileToBeRenamed", Instance:=IReceiver_InstanceId
-    gPipes.RemoveAction Outlet:="FileHasBeenRenamed", Instance:=IReceiver_InstanceId
+    gPipes.RemoveAction Instance:=IReceiver_InstanceId
 End Sub
 
 Private Sub Class_Initialize()
     Let sInstanceId = CreateGuidString
     Set UrlStack = New Collection
     
-    InitializePipesAndFilters
-    gPipes.AddAction Outlet:="FileToBeRenamed", Plug:=Me
-    gPipes.AddAction Outlet:="FileHasBeenRenamed", Plug:=Me
+    AddAction Outlet:="FileToBeRenamed", Plug:=Me
+    AddAction Outlet:="FileHasBeenRenamed", Plug:=Me
+    AddAction Outlet:="FileHasBeenRenamedInDatabase", Plug:=Me
 End Sub
 
 Private Sub Class_Terminate()
@@ -378,6 +383,8 @@ Private Sub IReceiver_HandleAction(Parameters As Variant, Outlet As String)
         HandleFileToBeRenamed Parameters:=Parameters
     Case "FileHasBeenRenamed":
         HandleFileHasBeenRenamed Parameters:=Parameters
+    Case "FileHasBeenRenamedInDatabase":
+        HandleFileHasBeenRenamedInDatabase Parameters:=Parameters
     Case Else:
         'NOOP
     End Select

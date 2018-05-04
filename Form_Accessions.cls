@@ -413,6 +413,12 @@ Private Sub Form_AfterUpdate()
         Let sLastCabinetFolderLabel = Nz(CabinetFolder.Value)
         Let sLastCabinetFolderPath = Nz(CabinetFolder.Column(3))
     End If
+    
+End Sub
+
+Private Sub Form_Close()
+    AccnScanListView.Unload
+    Set oAccnScanListView = Nothing
 End Sub
 
 Private Sub Form_Current()

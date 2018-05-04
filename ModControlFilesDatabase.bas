@@ -850,16 +850,37 @@ Public Sub InitializePipesAndFilters()
     End If
 End Sub
 
+Public Sub ReInitializePipesAndFilters()
+    If Not gPipes Is Nothing Then
+        gPipes.Reset
+    End If
+    Set gPipes = Nothing
+    
+    Set gPipes = New cPipeNetwork
+End Sub
+
 Public Sub FileRename(ByVal Source As String, ByVal Destination As String)
     Dim FromTo As New Dictionary: With FromTo
         .Add Key:="Source", Item:=Source
         .Add Key:="Destination", Item:=Destination
     End With
     
-    InitializePipesAndFilters
-    
-    gPipes.DoAction Outlet:="FileToBeRenamed", Parameters:=FromTo
+    DoAction Outlet:="FileToBeRenamed", Parameters:=FromTo
     Name Source As Destination
-    gPipes.DoAction Outlet:="FileHasBeenRenamed", Parameters:=FromTo
+    DoAction Outlet:="FileHasBeenRenamed", Parameters:=FromTo
 End Sub
 
+Public Sub AddAction(ByVal Outlet As String, Plug As IReceiver, Optional ByVal Priority As Integer)
+    InitializePipesAndFilters
+    gPipes.AddAction Outlet:=Outlet, Plug:=Plug, Priority:=Priority
+End Sub
+
+Public Sub DoAction(ByVal Outlet As String, Optional Parameters As Variant)
+    InitializePipesAndFilters
+    gPipes.DoAction Outlet:=Outlet, Parameters:=Parameters
+End Sub
+
+Public Function ApplyFilters(ByVal Outlet As String, InputElement As Variant, Optional Parameters As Variant) As Variant
+    InitializePipesAndFilters
+    Let ApplyFilters = gPipes.ApplyFilters(Outlet:=Outlet, InputElement:=InputElement, Parameters:=Parameters)
+End Function
