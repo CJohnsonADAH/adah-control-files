@@ -87,6 +87,11 @@ Private Sub cmdAddScan_Click()
     
     If dlgSourceFile.Show Then
         Dim LastItem As String
+        
+        'Clear out any old pending attachment
+        'now that user has explicitly supplied a new one
+        Set PendingAttachment = Nothing
+        
         For Each vItem In dlgSourceFile.SelectedItems
             Let LastItem = Nz(vItem)
             DoAttachScanFile File:=LastItem, Halt:=bAttachmentError, DestinationFolder:=sDestinationFolder
@@ -95,8 +100,17 @@ Private Sub cmdAddScan_Click()
                 Exit For
             End If
         Next vItem
-                
-        AccnScanListView.ReloadPDF
+            
+        If Me.NewRecord And bAttachmentError Then
+            'Something halted our progress;
+            'let's save the file name, possibly to re-try attaching later
+            Set PendingAttachment = New cAccnScan: With PendingAttachment
+                .Url = Nz(LastItem)
+            End With
+            
+        Else
+            AccnScanListView.ReloadPDF
+        End If
     End If
     
 End Sub
@@ -402,6 +416,7 @@ Private Sub Form_AfterUpdate()
 End Sub
 
 Private Sub Form_Current()
+    Set PendingAttachment = Nothing
     
     Me!ACCN.BackColor = RGB(255, 255, 255)
 
