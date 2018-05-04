@@ -957,6 +957,7 @@ Private Sub Class_Initialize()
         .Add Key:="Administrative", Item:="Admin"
         .Add Key:="Administration", Item:="Admin"
         .Add Key:="Clipping", Item:="Clip"
+        .Add Key:="Separation", Item:="Separation"
     End With
     
     Set dFileSystemMetadata = New Dictionary
