@@ -84,8 +84,10 @@ Private Sub cmdAddScan_Click()
     End With
     
     If dlgSourceFile.Show Then
+        Dim LastItem As String
         For Each vItem In dlgSourceFile.SelectedItems
-            DoAttachScanFile File:=Nz(vItem), Halt:=bAttachmentError, DestinationFolder:=sDestinationFolder
+            Let LastItem = Nz(vItem)
+            DoAttachScanFile File:=LastItem, Halt:=bAttachmentError, DestinationFolder:=sDestinationFolder
             
             If bAttachmentError Then
                 Exit For
