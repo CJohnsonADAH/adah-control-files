@@ -595,6 +595,117 @@ Public Function ConvertAccnScanFileNames()
     
 End Function
 
+Public Function UndatabasedPDFs(Optional ByVal FilePattern As String, Optional ByVal PathPattern As String) As Collection
+    Dim oAccnScan As cAccnScan
+    
+    Dim sRelativePath As String
+    Dim f As String
+    Dim sPattern As String
+    Dim aWords() As String
+    
+    Dim sCreator As String
+    Dim sCurName As String
+    
+    Dim sDrive As String
+    
+    Dim sFileName As String
+    Dim sNewFileName As String
+    Dim sFullPath As String
+    Dim sNewFullPath As String
+    
+    Dim cBits As Collection
+    
+    Dim cSourcePaths As Collection, vSourcePath As Variant
+    Dim cSearchDirs As Collection, vSearchDir As Variant
+    Dim cScanFiles As Collection, vScanFile As Variant
+    Dim cFoundFiles As New Collection
+    
+    Dim sDirPrefix As String
+    Dim I As Integer
+    
+    Dim Rs As DAO.Recordset
+        
+    Set oAccnScan = New cAccnScan
+    
+    Set cSourcePaths = New Collection: With cSourcePaths
+        .Add "\AgencyState"
+        .Add "\AgencyLocal"
+        .Add "\AgencyCourts"
+        .Add "\AgencyUS"
+        .Add "\CollectionsManagement\AgencyFiles\State"
+        .Add "\CollectionsManagement\AgencyFiles\Local"
+    End With
+    Let sDrive = oAccnScan.Drive
+    
+    Set cSearchDirs = New Collection
+    
+    For Each vSourcePath In cSourcePaths
+        sPattern = "*"
+    
+        sDirPrefix = CStr(vSourcePath) & "\"
+        f = Dir(sDrive & sDirPrefix & sPattern, vbDirectory)
+        Do While Len(f) > 0
+            If (f <> ".") And (f <> "..") Then
+                With cSearchDirs
+                    .Add (sDirPrefix & f & "\ContolFile")
+                    .Add (sDirPrefix & f & "\ContolFiles")
+                    .Add (sDirPrefix & f & "\ControlFile")
+                    .Add (sDirPrefix & f & "\ControlFiles")
+                End With
+            End If
+            f = Dir()
+        Loop
+    Next vSourcePath
+
+    For Each vSearchDir In cSearchDirs
+        sPattern = sDrive & vSearchDir & "\*.PDF"
+        
+        Set cScanFiles = New Collection
+        Let sFileName = Dir(sPattern, vbNormal)
+        Do While Len(sFileName) > 0
+            Dim BadPath As Boolean
+            Dim BadFileName As Boolean
+            
+            If Len(PathPattern) > 0 Then
+                Let BadPath = Not RegexMatch(Value:=sDrive & vSearchDir, Pattern:=PathPattern)
+            End If
+            If Len(FilePattern) > 0 Then
+                Let BadFileName = Not RegexMatch(Value:=sFileName, Pattern:=FilePattern)
+            End If
+            
+            If Not BadPath And Not BadFileName Then
+                cScanFiles.Add sFileName
+            End If
+            Let sFileName = Dir
+        Loop
+        
+        For Each vScanFile In cScanFiles
+            DoEvents
+            
+            Let sFileName = CStr(vScanFile)
+            
+            Set oAccnScan = New cAccnScan: With oAccnScan
+                .Url = sDrive & vSearchDir & "\" & sFileName
+            End With
+            
+            ' Is this scan file referenced in AccnScans?
+            Set Rs = CurrentDb.OpenRecordset("SELECT * FROM AccnScans LEFT JOIN Accessions ON (AccnScans.ACCN=Accessions.ACCN) WHERE FileName='" & Replace(sFileName, "'", "''") & "'")
+                
+            ' Yes: Get the meta-data from the database, then use that to enforce the naming convertion as need be
+            If Rs.EOF Then
+                Let sFullPath = sDrive & vSearchDir & "\" & sFileName
+                cFoundFiles.Add sFullPath
+            End If
+        Next vScanFile
+    Next vSearchDir
+    
+    Set UndatabasedPDFs = cFoundFiles
+End Function
+
+Public Function UndatabasedPDFCount(Optional ByVal FilePattern As String, Optional ByVal PathPattern As String)
+    Let UndatabasedPDFCount = UndatabasedPDFs(FilePattern:=FilePattern, PathPattern:=PathPattern).Count
+End Function
+
 Public Function RenamePDFs(Optional ByVal LogLevel As Integer)
     Dim oAccnScan As cAccnScan
     
