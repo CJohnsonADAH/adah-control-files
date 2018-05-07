@@ -955,6 +955,19 @@ Public Sub GetCabinetFoldersFromAccessions()
     Set Rs = Nothing
 End Sub
 
+Public Function DestinationFolderDialog() As String
+    Dim dlgDestinationFolder As FileDialog
+    
+    Set dlgDestinationFolder = Application.FileDialog(msoFileDialogFolderPicker): With dlgDestinationFolder
+        .Title = "Destination Folder"
+    End With
+
+    If dlgDestinationFolder.Show Then
+        Let DestinationFolderDialog = dlgDestinationFolder.SelectedItems(1)
+    End If
+
+End Function
+
 Public Sub InitializePipesAndFilters()
     If gPipes Is Nothing Then
         Set gPipes = New cPipeNetwork

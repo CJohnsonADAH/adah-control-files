@@ -19,6 +19,8 @@ Private oView As Object
 Private oScan As cAccnScan
 Private bInsertedAccession As Boolean
 
+Private tDelayedSearch As cStopWatch
+
 Private sInstanceId As String
 
 Private Property Get View() As Object
@@ -53,6 +55,14 @@ Private Function ScanFactory() As Object
     Set ScanFactory = o
 End Function
 
+Public Property Get DelayedSearch() As cStopWatch
+    If tDelayedSearch Is Nothing Then
+        Set tDelayedSearch = New cStopWatch
+    End If
+    
+    Set DelayedSearch = tDelayedSearch
+End Property
+
 Private Sub cmdConvertFileName_Click()
     'Before we do anything, we should lock in pending database changes
     Let Me.Dirty = False
@@ -65,7 +75,6 @@ End Sub
 
 Private Sub cmdInsert_Click()
     Dim dlgSourceFile As FileDialog
-    Dim dlgDestinationFolder As FileDialog
     
     Dim vItem As Variant
     Dim sItem As String
@@ -87,19 +96,13 @@ Private Sub cmdInsert_Click()
                 .Url = sItem
             End With
     
-            If Not oAccnScan.isOnDefaultDrive Then
+            If Not oAccnScan.NamingConvention.isOnDefaultDrive Then
                 If Len(sDestinationFolder) = 0 Then
-                    Let sDestinationFolder = oAccnScan.FolderHomePath
+                    Let sDestinationFolder = oAccnScan.NamingConvention.FileFolderHomePath
                 End If
                     
                 If Len(sDestinationFolder) = 0 Then
-                    Set dlgDestinationFolder = Application.FileDialog(msoFileDialogFolderPicker): With dlgDestinationFolder
-                        .Title = "Destination Folder"
-                    End With
-                
-                    If dlgDestinationFolder.Show Then
-                        Let sDestinationFolder = dlgDestinationFolder.SelectedItems(1)
-                    End If
+                    Let sDestinationFolder = DestinationFolderDialog
                 End If
                                 
                 If Len(sDestinationFolder) > 0 Then
@@ -108,8 +111,8 @@ Private Sub cmdInsert_Click()
                 End If
             End If
             
-            Let asFileFolderSlugs(1) = oAccnScan.FileFolderSlug(Old:=True)
-            Let asFileFolderSlugs(2) = oAccnScan.FileFolderSlug(Old:=False)
+            Let asFileFolderSlugs(1) = oAccnScan.NamingConvention.FileFolderSlug(Old:=True)
+            Let asFileFolderSlugs(2) = oAccnScan.NamingConvention.FileFolderSlug(Old:=False)
             
             Let View.ACCN = Nz(Me!ACCN.Value)
             
@@ -138,6 +141,34 @@ Private Sub Form_AfterUpdate()
         Forms!Accessions.RefreshAttachmentView
     End If
     Let bInsertedAccession = False
+End Sub
+
+Private Sub Form_ApplyFilter(Cancel As Integer, ApplyType As Integer)
+    Dim sFolderID As String
+    Dim iFolderID As Integer
+    Dim sFolderLabel As String
+    Dim sFilterCaption As String
+    
+    Select Case ApplyType
+    Case acApplyFilter:
+        Let sFilterCaption = Me.Filter
+        
+        Let sFolderID = RegexComponent(Value:=Me.Filter, Pattern:="^CabinetFolder=([0-9]+)$", Part:=1)
+        If Len(sFolderID) > 0 Then
+            Let iFolderID = Val(sFolderID)
+            Let sFolderLabel = DLookup(Expr:="Label", Domain:="CabinetFolders", Criteria:="ID=" & Format(iFolderID, "0"))
+            If Len(sFolderLabel) > 0 Then
+                Let sFilterCaption = sFolderLabel
+            End If
+        End If
+        
+        lblFolderLabel.Caption = sFilterCaption
+    
+    Case acShowAllRecords:
+        lblFolderLabel.Caption = "*"
+        
+        Let lstFolders.Value = ""
+    End Select
 End Sub
 
 Private Sub Form_BeforeUpdate(Cancel As Integer)
@@ -209,8 +240,30 @@ Private Sub Form_Current()
     RefreshLabelLinks
 End Sub
 
+Private Sub Form_Load()
+    Me.TimerInterval = 100
+End Sub
+
 Private Sub Form_Open(Cancel As Integer)
-    'NOOP
+
+End Sub
+
+Private Sub Form_Timer()
+    Dim WhereCondition As String
+    
+    If DelayedSearch.Running Then
+        DelayedSearch.StopTimer
+        If DelayedSearch.ms >= 300 Then
+            Let WhereCondition = ""
+            If Len(txtFolders.Text) > 0 Then
+                Let WhereCondition = "WHERE Creator LIKE '*" & txtFolders.Text & "*' OR Label LIKE '*" & txtFolders.Text & "*'"
+            End If
+            
+            lstFolders.RowSource = "SELECT ID, Creator, Label FROM CabinetFolders " & WhereCondition & " ORDER BY Creator, Label, ID;"
+            lstFolders.Requery
+            DelayedSearch.ResetTimer
+        End If
+    End If
 End Sub
 
 Private Sub lblACCN_Click()
@@ -247,3 +300,21 @@ Private Sub lblACCN_MouseUp(Button As Integer, Shift As Integer, X As Single, Y 
     End If
 End Sub
 
+Private Sub lstFolders_Click()
+    Dim iCancel As Integer
+    
+    'First, turn off the filter
+    Me.FilterOn = False
+    
+    'Next, set the filter
+    Me.Filter = "CabinetFolder=" & Format(lstFolders.Column(0), "0")
+    
+    'Finally, turn the filter (back) on
+    Me.FilterOn = True
+    
+    Form_ApplyFilter Cancel:=iCancel, ApplyType:=acApplyFilter
+End Sub
+
+Private Sub txtFolders_KeyUp(KeyCode As Integer, Shift As Integer)
+    DelayedSearch.StartTimer
+End Sub

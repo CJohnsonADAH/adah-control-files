@@ -14,6 +14,10 @@ Private sBaseName As String
 Private sRelativePath As String
 Private sDrive As String
 
+Private sOldPath As String
+
+Private oFolder As cCabinetFolder
+
 Public Property Get BaseName() As String: Let BaseName = sBaseName: End Property
 Public Property Let BaseName(s As String): Let sBaseName = s: End Property
 
@@ -84,6 +88,9 @@ Public Property Get Url() As String
     Url = sUrl
 End Property
 
+Public Property Get OldPath() As String: Let OldPath = sOldPath: End Property
+Public Property Let OldPath(s As String): Let sOldPath = s: End Property
+
 '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 
@@ -144,6 +151,10 @@ Public Function Creator() As String
 
 End Function
 
+Public Function CabinetFolder() As Integer
+    Let CabinetFolder = retrieveCabinetFolderID
+End Function
+
 Public Function Metadata() As Variant
     Dim bFound As Boolean
     
@@ -179,6 +190,89 @@ Public Function Metadata() As Variant
     Next vPattern
     
 End Function
+
+'''''''''''''''''''''''''''
+'''''''''''''''''''''''''''
+'''''''''''''''''''''''''''
+
+Public Function isOnDefaultDrive() As Boolean
+    Dim FSO As New FileSystemObject
+    Dim FO(1 To 2) As Folder
+    Dim driveNames(1 To 2) As String
+    
+    Set FO(1) = FSO.GetFolder(AbsolutePath)
+    Set FO(2) = FSO.GetFolder(getDefaultDrive & "\")
+    
+    'We need to account for the possibility of mapped network drives
+    Dim I As Integer
+    For I = 1 To 2
+        Let driveNames(I) = IIf(Len(FO(I).Drive.ShareName) > 0, FO(I).Drive.ShareName, FO(I).Drive.Path)
+    Next I
+    
+    Let isOnDefaultDrive = (driveNames(1) = driveNames(2))
+End Function
+
+Public Function FileFolderHomePath() As String
+    Dim oFolder As cCabinetFolder
+        
+    Set oFolder = New cCabinetFolder: With oFolder
+    .FileSourcePath = FileFolderSlug
+    End With
+    
+    If oFolder.ID <> 0 Then
+        Let FileFolderHomePath = getDefaultDrive & oFolder.FolderPath
+    End If
+ 
+End Function
+
+
+'''''''''''''''''''''''''''
+'''''''''''''''''''''''''''
+'''''''''''''''''''''''''''
+Public Function FileFolderSlug(Optional ByVal Old As Variant) As String
+    Dim myPath(1 To 2) As String
+    
+    Dim I As Integer
+    Dim J As Integer
+    
+    Dim sSlug As String
+    Dim asFolders() As String
+    
+    Dim UsePath(1 To 2) As Boolean
+    
+    If IsMissing(Old) Then
+        Let UsePath(1) = True
+        Let UsePath(2) = True
+    Else
+        Let UsePath(1) = CBool(Old)
+        Let UsePath(2) = Not CBool(Old)
+    End If
+    
+    Let myPath(1) = OldPath
+    Let myPath(2) = RelativePath
+    
+    Let I = LBound(myPath)
+    Do Until Len(sSlug) > 0 Or I > UBound(myPath)
+        If UsePath(I) Then
+            Let asFolders = Split(myPath(I), "\")
+            
+            Let J = UBound(asFolders)
+            Do Until (Len(sSlug) > 0) Or (J < LBound(asFolders))
+                If Not RegexMatch(asFolders(J), "(^Cont[r]?ol\s*File[s]?$|[.][A-Za-z0-9]+$)") Then
+                    Let sSlug = asFolders(J)
+                End If
+                Let J = J - 1
+            Loop
+        End If
+        Let I = I + 1
+    Loop
+    
+    Let FileFolderSlug = sSlug
+End Function
+
+'''''''''''''''''''''
+'''''''''''''''''''''
+'''''''''''''''''''''
 
 Public Function IsAccnSheet(Optional ByVal Version As Integer) As Boolean
     Dim Pattern As String
@@ -238,7 +332,7 @@ End Function
 '**
 '*
 '**
-Private Function retrieveScanFilePath()
+Private Function retrieveScanFilePath() As String
     Dim sRelativePath As String
     Dim f As String
     Dim sPattern As String
@@ -285,3 +379,23 @@ Private Function retrieveScanFilePath()
     
 End Function
 
+Private Function retrieveCabinetFolderID() As Integer
+    resetFolderWithSlugs
+    If oFolder.ID <> 0 Then
+        Let retrieveCabinetFolderID = oFolder.ID
+    Else
+        Let retrieveCabinetFolderID = 0
+    End If
+End Function
+
+Private Sub resetFolderWithSlugs()
+    Set oFolder = New cCabinetFolder: With oFolder
+        .FileSourcePath = FileFolderSlug(Old:=True)
+    End With
+    
+    If oFolder.ID = 0 Then
+        Set oFolder = New cCabinetFolder: With oFolder
+            .FilePath = FileFolderSlug(Old:=False)
+        End With
+    End If
+End Sub

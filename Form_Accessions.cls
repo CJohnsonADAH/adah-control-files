@@ -120,7 +120,6 @@ Private Sub DoLookUpScan()
 End Sub
 
 Private Sub DoAttachScanFile(ByVal File As String, ByRef Halt As Boolean, ByRef DestinationFolder As String)
-    Dim dlgDestinationFolder As FileDialog
     Dim asFileFolderSlugs(1 To 2) As String
     Dim bWasNewRecord As Boolean
     
@@ -128,27 +127,21 @@ Private Sub DoAttachScanFile(ByVal File As String, ByRef Halt As Boolean, ByRef 
         .Url = File
     End With
 
-    Let asFileFolderSlugs(1) = oAccnScan.FileFolderSlug
+    Let asFileFolderSlugs(1) = oAccnScan.NamingConvention.FileFolderSlug
 
-    If Not oAccnScan.isOnDefaultDrive Then
+    If Not oAccnScan.NamingConvention.isOnDefaultDrive Then
         If Len(DestinationFolder) = 0 Then
-            Let DestinationFolder = oAccnScan.FolderHomePath
+            Let DestinationFolder = oAccnScan.NamingConvention.FileFolderHomePath
         End If
                 
         If Len(DestinationFolder) = 0 Then
-            Set dlgDestinationFolder = Application.FileDialog(msoFileDialogFolderPicker): With dlgDestinationFolder
-                .Title = "Destination Folder"
-            End With
-                
-            If dlgDestinationFolder.Show Then
-                Let DestinationFolder = dlgDestinationFolder.SelectedItems(1)
-            End If
+            Let DestinationFolder = DestinationFolderDialog
         End If
                                 
         If Len(DestinationFolder) > 0 Then
             oAccnScan.doCopyTo NewPath:=DestinationFolder
             Let File = oAccnScan.Url
-            Let asFileFolderSlugs(2) = oAccnScan.FileFolderSlug
+            Let asFileFolderSlugs(2) = oAccnScan.NamingConvention.FileFolderSlug
         End If
     End If
     
@@ -414,6 +407,23 @@ Private Sub Form_AfterUpdate()
         Let sLastCabinetFolderPath = Nz(CabinetFolder.Column(3))
     End If
     
+End Sub
+
+Private Sub Form_BeforeUpdate(Cancel As Integer)
+    Dim bAttachmentError As Boolean
+    Dim sDestinationFolder As String
+    
+    If Len(Nz(Me!ACCN.Value)) > 0 Then
+        If Not PendingAttachment Is Nothing Then
+            With PendingAttachment
+                .ACCN = Me!ACCN.Value
+            End With
+            DoAttachScanFile File:=PendingAttachment.Url, Halt:=bAttachmentError, DestinationFolder:=sDestinationFolder
+                     
+            Debug.Print "HI"
+            Set PendingAttachment = Nothing
+        End If
+    End If
 End Sub
 
 Private Sub Form_Close()
