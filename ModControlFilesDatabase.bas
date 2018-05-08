@@ -968,6 +968,22 @@ Public Function DestinationFolderDialog() As String
 
 End Function
 
+Public Function FileFolderSlug(Path As String) As String
+    Dim Last As Integer
+    Dim aPath() As String
+    
+    Let aPath = Split(Path, "\"): Let Last = UBound(aPath)
+    If Last >= LBound(aPath) Then
+        If RegexMatch(aPath(Last), "^Contr?olFiles?$") Then
+            Let Last = Last - 1
+        End If
+    End If
+        
+    If Last >= LBound(aPath) Then
+        Let FileFolderSlug = aPath(Last)
+    End If
+End Function
+
 Public Sub InitializePipesAndFilters()
     If gPipes Is Nothing Then
         Set gPipes = New cPipeNetwork
