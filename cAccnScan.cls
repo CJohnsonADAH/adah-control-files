@@ -323,6 +323,7 @@ Public Sub InsertIntoAccnScans(Optional ByRef Controller As Form)
     Dim oAccession As cAccession
     Dim cScans As Collection
     Dim vScan As Variant
+    Dim Bundle As Object
     
     'Check to see whether or not this is a duplicate of an existing AccnScan record
     Set oAccession = New cAccession: Let oAccession.ACCN = ACCN
@@ -339,37 +340,33 @@ Public Sub InsertIntoAccnScans(Optional ByRef Controller As Form)
         
         With Rs
             .AddNew
-            .Fields("ACCN") = IIf(Len(ACCN) > 0, Trim(UCase(ACCN)), Null)
-            .Fields("VoyagerID") = Null
-            .Fields("LNUMBER") = Null
-            .Fields("NonAccnId") = Null
-            .Fields("SheetType") = SheetType
-            .Fields("Timestamp") = IIf(Timestamp <> 0, Timestamp, Null)
-            .Fields("CabinetFolder") = CabinetFolder
-            .Fields("FileName") = Trim(FileName)
-            .Fields("FilePath") = Trim(FilePath)
-            .Fields("OldPath") = IIf(Len(OldPath) > 0, OldPath, Null)
-            .Fields("FileNameToBeFixed") = FileNameToBeFixed
+            Set Bundle = .Fields
+        End With
+    Else
+        Set Bundle = Controller.Controls
+    End If
+            
+    With Bundle
+        .Item("ACCN") = IIf(Len(ACCN) > 0, Trim(UCase(ACCN)), Null)
+        .Item("VoyagerID") = Null
+        .Item("LNUMBER") = Null
+        .Item("NonAccnId") = Null
+        .Item("SheetType") = SheetType
+        .Item("Timestamp") = IIf(Timestamp <> 0, Timestamp, Null)
+        .Item("CabinetFolder") = CabinetFolder
+        .Item("FileName") = Trim(FileName)
+        .Item("FilePath") = Trim(FilePath)
+        .Item("OldPath") = IIf(Len(OldPath) > 0, OldPath, Null)
+        .Item("FileNameToBeFixed") = FileNameToBeFixed Or (NewRecord And NamingConvention.IsCopierScan)
+    End With
+
+    If Controller Is Nothing Then
+        With Rs
             .Update
             .Close
         End With
         
         Set Rs = Nothing
-    Else
-    
-        With Controller
-            .Controls("ACCN").Value = IIf(Len(ACCN) > 0, Trim(UCase(ACCN)), Null)
-            .Controls("FileName").Value = FileName
-            .Controls("FilePath").Value = FilePath
-            .Controls("SheetType").Value = SheetType
-            If Timestamp <> 0 Then
-                .Controls("Timestamp").Value = Timestamp
-            End If
-            .Controls("CabinetFolder").Value = CabinetFolder
-            .Controls("OldPath").Value = OldPath
-            .Controls("FileNameToBeFixed").Value = FileNameToBeFixed Or (NewRecord And NamingConvention.IsCopierScan)
-        End With
-        
     End If
 End Sub
 
@@ -530,41 +527,34 @@ CatchRename:
 End Sub
 
 Public Sub DatabaseConvertFileNames(OldFileName As String, OldFilePath As String)
-    Dim oQuery As DAO.QueryDef
-    Dim rsAccnScan As DAO.Recordset
+    Dim Rs As DAO.Recordset, FileNamePath As Dictionary
     Dim FromTo As Dictionary
     
-    'On Error Resume Next: CurrentDb.QueryDefs.Delete "qUpdateAccnScans": On Error GoTo 0
+    Set FileNamePath = New Dictionary: With FileNamePath
+        .Add Key:="FileName", Item:=Trim(OldFileName)
+        .Add Key:="FilePath", Item:=Trim(OldFilePath)
+    End With
     
-    Set oQuery = CurrentDb.CreateQueryDef( _
-        Name:="", _
-        SQLText:="SELECT * FROM AccnScans " _
-        & "WHERE FileName=[paramFileName] " _
-        & "AND FilePath=[paramFilePath]" _
-    )
-    oQuery.Parameters("paramFileName") = Trim(OldFileName)
-    oQuery.Parameters("paramFilePath") = Trim(OldFilePath)
-
-    Set rsAccnScan = oQuery.OpenRecordset
-    Do Until rsAccnScan.EOF
-        rsAccnScan.Edit
-        rsAccnScan!FileName = FileName
-        rsAccnScan!FilePath = FilePath
-        rsAccnScan!FileNameToBeFixed = False
-        rsAccnScan.Update
+    Set Rs = RsSelect(Parameters:=FileNamePath)
+    With Rs
+        Do Until .EOF
+            .Edit
+            !FileName.Value = FileName
+            !FilePath.Value = FilePath
+            !FileNameToBeFixed.Value = False
+            .Update
         
-        Set FromTo = New Dictionary: With FromTo
-            .Add Key:="Source", Item:=OldFileName
-            .Add Key:="Destination", Item:=FileName
-        End With
-        DoAction Outlet:="FileHasBeenRenamedInDatabase", Parameters:=FromTo
+            Set FromTo = New Dictionary: With FromTo
+                .Add Key:="Source", Item:=OldFileName
+                .Add Key:="Destination", Item:=FileName
+            End With
+            DoAction Outlet:="FileHasBeenRenamedInDatabase", Parameters:=FromTo
         
-        rsAccnScan.MoveNext
-    Loop
-    rsAccnScan.Close
-    Set rsAccnScan = Nothing
-    
-    'On Error Resume Next: CurrentDb.QueryDefs.Delete "qUpdateAccnScans": On Error GoTo 0
+            .MoveNext
+        Loop
+        .Close
+    End With
+    Set Rs = Nothing
 
 End Sub
 
@@ -610,16 +600,9 @@ End Function
 
 Private Sub RetrieveFromDatabase(ByVal Field As String, ByVal Value As Variant)
     Dim Rs As DAO.Recordset
-    Dim Qy As DAO.QueryDef
     Dim v As Variant
     
-    Set Qy = CurrentDb.CreateQueryDef( _
-        Name:="", SQLText:="SELECT * FROM [AccnScans] " _
-        & "WHERE [" & Field & "]=[paramToMatch]" _
-    )
-    Let Qy.Parameters("paramToMatch") = Value
-    
-    Set Rs = Qy.OpenRecordset
+    Set Rs = RsSelect(Field:=Field, Value:=Value)
     If Not Rs.EOF Then
         Let FilePath = Nz(Rs!FilePath.Value)
         Let FileName = Nz(Rs!FileName.Value)
@@ -633,9 +616,60 @@ Private Sub RetrieveFromDatabase(ByVal Field As String, ByVal Value As Variant)
     Rs.Close
     
     Set Rs = Nothing
-    Set Qy = Nothing
     
 End Sub
+
+Private Function RsSelect(Optional ByVal Field As String, Optional ByVal Value As Variant, Optional Parameters As Dictionary, Optional ByVal Operator As String) As DAO.Recordset
+    Dim SQL As String
+    Dim WhereCondition As String
+    
+    Dim vKey As Variant
+    Dim sKey As String
+    Dim vValue As Variant
+    
+    Dim Qy As DAO.QueryDef
+    
+    If Len(Operator) = 0 Then
+        Let Operator = "AND"
+    End If
+    
+    If Parameters Is Nothing Then
+        Set Parameters = New Dictionary
+    End If
+    
+    If Len(Field) > 0 Then
+        If Not Parameters.Exists(Field) Then
+            Parameters.Add Key:=Field, Item:=Value
+        End If
+    End If
+    
+    Let SQL = "SELECT * FROM [AccnScans]"
+    For Each vKey In Parameters.Keys
+        
+        Let vValue = Parameters.Item(vKey)
+        
+        Let sKey = Nz(vKey)
+        If Len(WhereCondition) = 0 Then
+            Let WhereCondition = " WHERE "
+        Else
+            Let WhereCondition = WhereCondition & " " & Operator & " "
+        End If
+        
+        Let WhereCondition = WhereCondition & "[" & sKey & "] = [param" & sKey & "]"
+    Next vKey
+    Let SQL = SQL & WhereCondition
+    Set Qy = CurrentDb.CreateQueryDef(Name:="", SQLText:=SQL)
+    
+    For Each vKey In Parameters.Keys
+        Let sKey = "param" & Nz(vKey)
+        Let vValue = Parameters.Item(vKey)
+        
+        Let Qy.Parameters(sKey) = vValue
+    Next vKey
+
+    Set RsSelect = Qy.OpenRecordset
+
+End Function
 
 Public Function HasNamingConvention(Optional ByVal SheetType As String) As Boolean
     If Len(SheetType) = 0 Then
