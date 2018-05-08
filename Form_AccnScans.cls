@@ -245,7 +245,9 @@ Private Sub Form_Load()
 End Sub
 
 Private Sub Form_Open(Cancel As Integer)
-
+    Dim iCancel As Integer
+    
+    Form_ApplyFilter Cancel:=iCancel, ApplyType:=acShowAllRecords
 End Sub
 
 Private Sub Form_Timer()
